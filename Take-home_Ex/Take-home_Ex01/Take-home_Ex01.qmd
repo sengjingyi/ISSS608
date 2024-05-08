@@ -1,0 +1,1259 @@
+---
+title: "Take-home Exercise 1"
+subtitle: "Exploring Private Residential Market in Singapore"
+author: "Seng Jing Yi"
+date: "April 18, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+  
+format:
+  html:
+    code-fold: true
+---
+
+## 1. Overview
+
+### 1.1. Context of Singapore's Private Property Market
+
+Singapore's private residential market is diverse. With price being a product of supply and demand, sale prices of property vary greatly depending on the property transacted. This includes factors such as property type, unit size, location and remaining leasehold.
+
+Individual purchase of residential property can range from:
+
+-   Lowest of \$440,000 for resale apartment with limited leasehold of 28 years in Paya Lebar (OCR).
+
+-   Highest of \$45,000,000 for new freehold condo launched in Tanglin (CCR).
+
+#### 1.1.1. Supply of Private Residential Property
+
+Note: Highest price reflected excludes commercial en-bloc sale and exceptional cases.
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Commercial en-bloc sale                                                                                                                                                                        | Exceptional cases                                                                                                                                                                                                                                                                                 |
++================================================================================================================================================================================================+===================================================================================================================================================================================================================================================================================================+
+| Typically involves freehold property, traditionally completed in 1980s-1990s where Price (PSF) is lower and developers can potentially profit with redevelopment of the land plot, such as:    | -   [Sale of Dick Lee family's bungalows](https://www.asiaone.com/money/sold-611m-proceeds-sale-dick-lee-familys-bungalows-going-charity) for charity - \$61.1 million for adjoining freehold bungalow.                                                                                           |
+|                                                                                                                                                                                                |                                                                                                                                                                                                                                                                                                   |
+| -   E.g., #1 - [Meyer Parks](https://www.straitstimes.com/business/meyer-park-sells-for-39218-million-in-third-en-bloc-attempt) - \$392.18 million for 144,883 sqft for 60 units on 9 Feb 2023 | -   Sale of [Good Class Bungalow](https://www.propertyguru.com.sg/property-management-news/2023/2/207934/wilkinson-road-bungalow-sold-for-55-5-million-singapore-property-market-braces-for-increased-demand-from-chinese-buyers-and-more) at 61 Wilkinson Road - \$55.5 million for 25,680 sqft. |
+| -   E.g., #2 - [Bagnall Court](https://sg.finance.yahoo.com/news/roxy-pacific-led-consortium-behind-123846270.html) - \$115.28 million for 68,491 sqft for 43 units on 4 Jan 2023              |                                                                                                                                                                                                                                                                                                   |
+| -   E.g., #3 - [Kew Lodge](https://sg.finance.yahoo.com/news/kew-lodge-sold-66-8-114356079.html) - \$66.8 million for 25177 sqft for 11 units on 23 May 2023.                                  |                                                                                                                                                                                                                                                                                                   |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+#### **1.1.2 Demand for Private Residential Property**
+
+Aside from non-uniform supply, demand varies across buyers with different purchasing power. There are [4 main groups](https://www.edgeprop.sg/property-news/new-private-housing-market-sees-rising-demand-young-singaporeans), each with differing interests.
+
++---------------------+----------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------+
+| Audience            | HDB Upgraders                                      | Foreign Investors                                                                                                                                                                                                                       | Young couples                                                                                                                                                                                                       | Local investors                                                                                            |
++=====================+====================================================+=========================================================================================================================================================================================================================================+=====================================================================================================================================================================================================================+============================================================================================================+
+| Purchase Motivation | Upgrade of lifestyle.                              | Capital appreciation, but demand weakened with [huge increase of ABSD to 60% in April 2023](https://www.channelnewsasia.com/singapore/property-cooling-measures-absd-additional-buyers-stamp-duty-doubled-foreigners-increase-3446376). | [Exceeded \$14,000 cap for BTO](https://www.singsaver.com.sg/blog/exceeding-bto-income-ceiling) with later marriages, higher earning power turning to either resale public housing or private residential property. | Purchase property for rental income.                                                                       |
++---------------------+----------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------+
+| Area of Interest    | Large unit size, mostly OCR, and ocassionally RCR. | Luxury property mostly in CCR or RCR for investment.                                                                                                                                                                                    | With limited cash on hand, they are keen on units in OCR with decent size.                                                                                                                                          | Small units in RCR or CCR for ease of rental to expats or foreigners and capital appreciation with resale. |
++---------------------+----------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------+
+
+### 1.2. Our objectives
+
+As a graphical editor of a median company, this post aims to:
+
+1.  Explore the distribution of property sale prices with regards to (1) Location, (2) Property Type, (3) Unit-Size to understand the expected price of similar properties.
+2.  Uncover the factors driving demand such as (4) Remaining Leasehold, (5) Expectation of interest rates, and (6) Buyer's demographics.
+3.  Look into sub-markets such as commercial en-bloc, new launches, luxury private residential market.
+
+## 2. Data Pre-processing & data exploration
+
+### 2.1 Loading data & relevant libraries
+
+#### 2.1.1 Loading relevant libraries to be used.
+
++-----------------------+--------------------------------------------------------------------------------------+
+| Library               | Purpose                                                                              |
++=======================+======================================================================================+
+| tidyverse             | -   Include dpylr for data manipulation with "mutate", "group_by", "summarize", etc. |
+|                       |                                                                                      |
+|                       | -   Include ggplot2 for visualisation through histogram, boxplots, etc.              |
+|                       |                                                                                      |
+|                       | -   Include forcats for factoring and ordering of variables                          |
++-----------------------+--------------------------------------------------------------------------------------+
+| ggdist                | -   For visualisation of distributions and uncertainity.                             |
+|                       |                                                                                      |
+| ggridges              | -   For creating density plots for visualisation of continuous distribution.         |
+|                       |                                                                                      |
+| ggrepel               | -   For repelling overlapping text labels in plot                                    |
+|                       |                                                                                      |
+| ggthemes & hrbrthemes | -   For customisation of plot appearance                                             |
++-----------------------+--------------------------------------------------------------------------------------+
+| patchwork             | For combination and alignment of multiple plots for each visualisation.              |
++-----------------------+--------------------------------------------------------------------------------------+
+| knitr                 | For elegant, flexible and fast report generation of underlying dataframes.           |
++-----------------------+--------------------------------------------------------------------------------------+
+
+```{r}
+pacman::p_load(ggrepel, patchwork, 
+               ggthemes, hrbrthemes,
+               tidyverse, readr, ggdist, ggridges, colorspace, knitr, forcats, reshape2, png, grid) 
+```
+
+#### 2.1.2 Combining multiple data files into a common file for further processing.
+
+![](images/Screenshot 2024-04-25 223057.png)
+
+```{r}
+realis_1 <- read_csv("data/ResidentialTransaction20240308160536.csv")
+realis_2 <- read_csv("data/ResidentialTransaction20240308160736.csv")
+realis_3 <- read_csv("data/ResidentialTransaction20240308161009.csv")
+realis_4 <- read_csv("data/ResidentialTransaction20240308161109.csv")
+realis_5 <- read_csv("data/ResidentialTransaction20240414220633.csv")
+
+realis_full <- rbind(realis_1, realis_2, realis_3, realis_4, realis_5)
+
+```
+
+#### 2.1.3. To understand the compiled data set, we queried the data type
+
+```{r}
+# Understanding the data types for the respective columns
+header_types <- sapply(realis_full, class)
+```
+
++---------------------------------+-----------------------------------------------+------------------+
+| Categorical Variables           | Continuous Variables (Numerical / Date)       | Identifiers      |
++=================================+===============================================+==================+
+| -   Type of Sale                | -   Transacted Price                          | -   Project Name |
+| -   Type of Area                | -   Area (SQFT)                               | -   Postal Code  |
+| -   Property Type               | -   Unit Price (PSF)                          |                  |
+| -   Purchaser Address Indicator | -   Tenure (Converted to remaining leasehold) |                  |
+| -   Planning Area               | -   Sale Date                                 |                  |
+|                                 | -   Completion Date                           |                  |
+|                                 | -   Number of Units                           |                  |
++---------------------------------+-----------------------------------------------+------------------+
+
+#### **2.1.4. For key categorical variables, we explored the unique values.**
+
+```{r}
+# Understanding the unique data values in each column that is categorical.
+
+get_unique_val <- function(df) {lapply(df, unique)}
+realis_cat <- realis_full[,c("Type of Sale", "Type of Area", "Property Type", "Purchaser Address Indicator", "Planning Area")]
+unique_val <- get_unique_val(realis_cat)
+uni_val_df <- data.frame(
+  Values = sapply(unique_val, paste, collapse = ", ")
+)
+
+kable(uni_val_df, caption = "Unique Categories in Realis Dataset", row.names = NA, label = NULL)
+```
+
+#### **2.1.5. For Continuous variables (Numerical), a quick understanding of their min, max values and interquartile range was obtained with `summary()` function**.
+
+Note: As further processing for is required for date-related variables, this will be covered subsequently in data processing for `Sale Date`, `Completion Date`, and `Tenure`.
+
+```{r}
+# Understanding the distribution of numerical values in Realis 
+realis_num <- realis_full[,c("Transacted Price ($)", "Area (SQFT)", "Unit Price ($ PSF)", "Number of Units")]
+
+realis_num <- realis_num %>% 
+  rename("Transacted_Price" = "Transacted Price ($)") %>% 
+  rename("Area_SQFT" = "Area (SQFT)") %>%
+  rename("Unit_Price_PSF" = "Unit Price ($ PSF)") %>% 
+  rename("Number_of_Units" = "Number of Units")
+  
+kable(summary(realis_num))
+```
+
+### 2.2 Processing data & creating new variables for relevance to real-life.
+
+```{mermaid}
+
+flowchart LR
+
+  id1[(URA Real Estate Transactions)] --> id2(Private Residential Property Transactions)
+ 
+  id2(Private Residential Property Transactions) --> id3(Sale Details)
+  id2(Private Residential Property Transactions) --> id4(Property Details)
+  
+    id4(Property Details) --> id7(Property Nature)
+    id4(Property Details) --> id5(Location)
+    id4(Property Details) --> id6(Property Lifespan)
+    id4(Property Details) --> id3(Project Name)
+      
+  
+    id3(Sale Details) --> id8(Transaction Price)
+    id3(Sale Details) --> id9(Number of Units)
+    id3(Sale Details) --> id10(Type of Sale)
+    id3(Sale Details) --> id11(Purchaser Address Indicator)
+    id3(Sale Details) --> id12(Sale Date)
+    
+    id8(Transaction Price) --> id14(Price PSF)
+    id9(Number of Units) --> |Sum| v3>Number of Units per Project]
+     
+    id5(Location) --> a(Address)
+    id5(Location) --> b(Postal Code) 
+    id5(Location) --> c(Postal District)
+    id5(Location) --> d(Planning Region)
+    id5(Location) --> e(Planning Area)
+    
+    c(Postal District) --> |Mutate| v1(Region Type - CCR, RCR, OCR)
+    e(Planning Area) --> |Mutate| v1>Region Type - CCR, RCR, OCR]
+    
+    id6(Property Lifespan) --> f(Tenure)
+    id6(Property Lifespan) --> g(Completion Date)
+    f(Tenure) --> |Lubridate| v2(Remaining Lease)
+    g(Completion Date) -->|Lubridate| v2>Remaining Lease]
+    
+    id7(Property Nature) --> h(Type of Area)
+    id7(Property Nature) --> |Mutate| i>Freehold / Lease term]  
+    id7(Property Nature) --> j(Area SQFT)
+    
+    b(Postal Code) --> |Mutate| v4>Common Postal Code for big projects]
+```
+
+#### 2.2.1 Manual data correction for incorrect data entry
+
+-   Re-labelling was performed for visibly wrong record. (e.g., `Completion Year` for ["The Hiller"](https://www.edgeprop.sg/condo-apartment/the-hillier) should be 2011 instead of 0216) and this was cross-checked with industry sources.
+
+#### 2.2.2 - Reclassification of `Postal District` to reflect proximity to city center
+
+-   Referencing "Property Guru", the property sold can be grouped into Central Core Region, Rest of Central Region and Outside of Central Region ([CCR, RCR and OCR](https://www.propertyguru.com.sg/property-guides/ccr-ocr-rcr-region-singapore-ura-map-21045)).
+-   Hence, a new column of `Region_type` was created to reflect the 3 segmented zones based on classifying the existing values in `Postal District`.
+
++---------------------------------+------------------------------------------------+
+| Region Type                     | Postal District classified                     |
++=================================+================================================+
+| Core Central Region (CCR)       | 01, 02, 04, 06, 07, 09, 10, 11                 |
++---------------------------------+------------------------------------------------+
+| Rest of Central Region (RCR)    | 03, 05, 08, 12, 13, 14, 15, 20                 |
++---------------------------------+------------------------------------------------+
+| Outside of Central Region (OCR) | 16, 17, 18, 19, 21, 22, 23, 24, 25, 26, 27, 28 |
++---------------------------------+------------------------------------------------+
+
+```{r}
+# Encoding postal district into CCR, RCR and OCR
+realis_full <- realis_full %>% 
+  mutate(`Postal District` = as.numeric(`Postal District`)) %>%
+  mutate(Region_type = case_when(
+    `Postal District` %in% c(01, 02, 04, 06, 07, 09,10, 11) ~ "CCR",
+    `Postal District` %in% c(03, 05, 08, 12, 13, 14, 15, 20) ~ "RCR",
+    `Postal District` %in% c(16, 17, 18, 19, 21, 22, 23, 24, 25, 26, 27, 28) ~ "OCR"
+  ))
+```
+
+-   Also, for reasonableness check, a mapping of the `Postal District` values was mapped to easily recognised `Planning Area` that the public is familiar with.
+
+```{r}
+postal_mapping<- realis_full %>%
+  group_by(`Planning Area`) %>%
+  summarize(Distinct_Values = paste(unique(`Postal District`), collapse = ", "))
+
+kable(postal_mapping, title = "Mapping of Planning Area to Postal District ")
+```
+
+#### 2.2.3 For standardisation, where large project tends to spread across multiple postal codes, a consistent postal code was assigned to each project.
+
+-   Revised postal code assigned is based on the highest frequency per project with the `group_by()` function.
+
++-------------------------+---------------------------------------------------------+------------------------+
+| E.g., Project Name      | Original Postal Code                                    | Reassigned Postal Code |
++=========================+=========================================================+========================+
+| The Reserve Residences  | 589604 589605 589603 589770 589771 589772 589773 589774 | 589605                 |
++-------------------------+---------------------------------------------------------+------------------------+
+| Grand Dunman            | 439397 439409 438664 438665 439395 439396 439188        | 439396                 |
++-------------------------+---------------------------------------------------------+------------------------+
+| Lentor Hills Residences | 788881 788882 788883 788884 78885                       | 788882                 |
++-------------------------+---------------------------------------------------------+------------------------+
+
+```{r}
+# Re-assigning large projects to a common postal code. (highest frequency postal code) for standardisation. 
+realis_full <- realis_full %>%
+  group_by(`Project Name`) %>%
+  mutate(`Postal Code` = names(which.max(table(`Postal Code`)))) %>%
+  ungroup()
+```
+
+#### 2.2.4 - Converting `Tenure` into remaining lease life.
+
+-   Converting `Tenure` into date format, excluding those "Freehold", "99 or 999 years leasehold from uncompleted units".
+
+-   Calculating the remaining lease life based on `Sale Date`. (Values are rounded down to nearest no. of years)
+
+-   Re-labeling back the records which are "Freehold" and "99 or 999 years leasehold" for uncompleted units.
+
++----------------------------+----------------------------+--------------------------------+
+| Remaining Lease (in years) | Number of Units Transacted | Percentage of Units Transacted |
++============================+============================+================================+
+| 0-30                       | 13                         | 0.05%                          |
++----------------------------+----------------------------+--------------------------------+
+| 31-60                      | 343                        | 1.27%                          |
++----------------------------+----------------------------+--------------------------------+
+| 61 - 150                   | 18,557                     | 68.89%                         |
++----------------------------+----------------------------+--------------------------------+
+| \>150                      | 803                        | 2.98%                          |
++----------------------------+----------------------------+--------------------------------+
+| Freehold                   | 7,220                      | 26.80%                         |
++----------------------------+----------------------------+--------------------------------+
+
+```{r}
+realis_clean <- realis_full %>%
+  rowwise() %>%
+  mutate(
+    years = as.numeric(str_extract(Tenure, "\\d+(?=\\s+yrs)")),  # Extracts digits before " yrs" as years
+    start_date = dmy(str_extract(Tenure, "\\d{2}/\\d{2}/\\d{4}")),  # Extracts date in "dd/mm/yyyy" format
+    end_date = start_date + years(years),
+    remaining_years = floor(as.numeric(difftime(end_date, Sys.Date(), units = "days") / 365)) # Calculate remaining years from days
+  ) %>%
+  ungroup()
+
+realis_clean2 <- realis_clean %>%
+  mutate(years_left = ifelse(!is.na(remaining_years), remaining_years, 
+                             ifelse(Tenure == "999 years leasehold", "999", 
+                                    ifelse(Tenure == "99 years leasehold", "99", 
+                                           ifelse(Tenure == "Freehold", "Freehold", 
+                                                  ifelse(Tenure == "110 yrs from 01/11/2017", "103",
+                                                         ifelse(Tenure == "110 Yrs from 01/11/2017", "103", NA)))))))
+
+# Converting character into date format
+realis_clean2$`Sale Date` <- as.Date(realis_clean2$`Sale Date`, format = "%d %b %Y") 
+
+```
+
+### 2.3 Exploring outliers and identifying potential clusters.
+
+#### 2.3.1 - Commercial En-bloc
+
+Observing the data set, the transactions include commercial purchases that are infrequent and done by private developers for large land masses. This subset of transactions are unlikely to be done by individual buyers, and will be excluded from subsequent visualisation to prevent distortion of the axis.
+
+-   `Number of Units` \> 5
+-   `Type of Sale` = "Resale"
+-   `Purchaser Address Indicator` ="Private"
+-   `Tenure` = "Freehold"
+
+```{r}
+enbloc_set <- realis_full %>% filter(`Tenure` == "Freehold", 
+                                     `Number of Units` > 5, 
+                                     `Purchaser Address Indicator` == "Private", 
+                                     `Type of Sale` == "Resale"
+                                      )
+enbloc_set_2 <- enbloc_set %>% 
+  rename("Transacted_Price" = "Transacted Price ($)") %>% 
+  rename("Area_SQFT" = "Area (SQFT)") %>%
+  rename("Unit_Price_PSF" = "Unit Price ($ PSF)") %>% 
+  rename("Sale_Date" = "Sale Date") %>% 
+  rename("Number_of_Units" = "Number of Units")
+
+kable(enbloc_set_2)
+```
+
+#### 2.3.2 - Large new launches
+
+Another subset identified are new project launches, where we observe a spike in transaction volumes in the month which new large developments are launched. While these transactions are not excluded from the visualisation dataset, this subset will be further analysed under section 3.3
+
+-   `Type of Sale` = "New Sale"
+-   `Completion Date` = "Uncompleted"
+-   Sum of `Number of Units` group by `Project Name` \> 100
+
+```{r}
+Sale_by_proj <- realis_full %>% 
+  group_by(`Project Name`) %>% 
+  mutate(total_sale = sum(`Number of Units`))%>% 
+  arrange(desc(total_sale)) %>%
+  ungroup()
+  
+new_launch <- Sale_by_proj %>% 
+  filter(`Type of Sale` == "New Sale", 
+         `Completion Date` == "Uncompleted")
+
+large_new_launch <- Sale_by_proj %>% 
+  filter(`Type of Sale` == "New Sale", 
+         `Completion Date` == "Uncompleted", 
+         total_sale > 100)
+
+large_new_launch <- large_new_launch %>% 
+  rename("Unit_Price_PSF" = "Unit Price ($ PSF)")
+
+new_proj_sale <- large_new_launch %>%
+  group_by(`Project Name`) %>%
+  summarize(proj_sale = total_sale, 
+            median_proj_psf = median(as.numeric(`Unit_Price_PSF`))) %>%
+  arrange(desc(proj_sale))
+
+kable(head(distinct(new_proj_sale)), n =5)
+
+```
+
+Example of new large development new launches & reported sales:
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------------------------------+
+| Newly launched Project                                                                                                                                     | Month of Launch | Sales with first launch            |
++============================================================================================================================================================+=================+====================================+
+| [The Reserve Residences](https://www.straitstimes.com/singapore/more-than-70-of-units-at-the-reserve-residences-in-bukit-timah-sold-during-launch-weekend) | May 2023        | \>70% units sold at launch weekend |
++------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------------------------------+
+| [Grand Dunman](https://www.straitstimes.com/business/over-half-of-grand-dunman-s-1008-units-sold-on-launch-weekend-at-average-price-of-2500-psf)           | July 2023       | \>50% units sold at launch weekend |
++------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------------------------------+
+| [Lentor Hills Residences](https://www.straitstimes.com/business/half-of-lentor-hills-residences-units-sold-on-launch-weekend-at-average-of-2080-psf)       | July 2023       | \>50% units sold at launch weekend |
++------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------------------------------+
+| [Lentor Mansion](https://www.straitstimes.com/singapore/lentor-mansion-sells-75-of-available-units-at-launch-weekend)                                      | Mar 2024        | 75% units sold at launch weekend   |
++------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------------------------------+
+| [Tembusu Grand](https://www.straitstimes.com/business/over-half-of-units-at-tembusu-grand-sold-on-launch-weekend)                                          | Apr 2023        | \>50% units sold at launch weekend |
++------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------------------------------+
+
+#### 2.3.3 - Luxury market
+
+-   Exploring transactions that has `Transacted Price ($)` in the top 2.5% which has previously been excluded in earlier price distribution visualisation as they skewed the records.
+-   The distribution of property for this luxury market will be further analysed in section 3.3.
+
++-------------------------------------+-----------------+-----------------------------+
+| Price Range                         | Number of Units | Number of Distinct Projects |
++=====================================+=================+=============================+
+| -   97.5 percentile -\> \$6,2250,93 | 677             | Approx 200                  |
+|                                     |                 |                             |
+| -   Max -\>\$61,080,008             |                 |                             |
++-------------------------------------+-----------------+-----------------------------+
+
+```{r}
+high_val <- realis_clean2 %>%
+  filter(`Transacted Price ($)` > quantile(`Transacted Price ($)`, 0.975, na.rm = TRUE)) 
+
+ind_high_val <- anti_join(high_val, enbloc_set, by = c("Tenure","Number of Units","Type of Sale"))
+
+```
+
+## 3. Data Visualization
+
+Diving into individual private residential purchases, the visualization data set used `Realis_vis` will exclude the subset of `Enbloc_set`.
+
+```{r}
+realis_vis <- anti_join(realis_clean2, enbloc_set, by = c("Tenure","Number of Units","Type of Sale"))
+
+```
+
+### 3.1 Setting a common theme for visualisation.
+
+1.  To have an aligned understanding, we have defined a common color scheme.
+
+![](images/color scheme.png)
+
+```{r}
+prop_col <- c("Apartment" = "#CCE5FF", 
+              "Executive Condominium" = "#CCFF99", 
+              "Condominium" = "#99CCff", 
+              "Terrace House" = "#FFE5CC", 
+              "Semi-Detached House" = "#FFCC99", 
+              "Detached House" = "#FF9933")
+
+```
+
+2\. To minimise distortion from outliers, the upper bounds will be adjusted according to the underlying dataset values.
+
+```{r}
+upper_bound <- quantile(realis_clean2$`Transacted Price ($)`, 0.975)
+print(paste("Upper bound price at 97.5%", upper_bound))
+
+```
+
+### 3.2 Visualization 1 - How has transacted price varied over the 2024 Q1 and 2023
+
+![](images/Visualisation1.png)
+
+[**Insights:**]{.underline}
+
+1.  Majority of private residential sales involves Apartment & Condominium, and Executive condominium, given limited supply of Terrace, Semi-Detached and Detached houses and much higher prices leading to fewer transaction.
+2.  Price of Condo and Apartment relatively similar, EC is much cheaper with highly subsidized government rates.
+3.  Clear price distinction between (1) Apartment, Condo, where \> 75% below \$2.7 Mil vs (2) Terrace, Semi-Detached, Detached Houses, where \> 75% above \$2.7 Mil, signalling different purchasing power of target audience.
+4.  Seasonality of sales varies. While terrace and semi-detached relatively even sales, sales for EC, Condo, Apartment highly varied with new project launches. (Further exploration in Section 3.3)
+5.  Demand in 2024 Q1 started strong, and fell in February. Potentially due to busy CNY season and shorter month. Transaction is picking up again in March 2024.
+
+#### 3.2.1 Distribution of No. of Unit of property sold over months per Property Type
+
+[Steps taken:]{.underline}
+
+1.  Binning the transaction records into months.
+2.  Drawing bar graph and color coding based on the type of property sold
+3.  Including annotation to segregate the bars that are for 2024 Q1
+
+```{r}
+sale_by_prop_month <- realis_clean2 %>% 
+  group_by(`Property Type`, (year_month = format(`Sale Date`, "%Y-%m"))) %>%
+  summarise(total_units = sum(`Number of Units`), avg_price = median(`Transacted Price ($)`))
+
+sale_by_prop_month <- sale_by_prop_month %>% rename_with( ~ "year_month", .cols = 2)
+
+# Converting the year_month from character back to continuous date for line plots 
+sale_by_prop_month$year_month <- as.Date(paste0(sale_by_prop_month$year_month, "-01"))
+
+# Extract the month and year information for labeling
+sale_by_prop_month$month <- format(sale_by_prop_month$year_month, "%b")
+sale_by_prop_month$year <- format(sale_by_prop_month$year_month, "%Y")
+
+# Create a label for each point showing the month and year
+sale_by_prop_month$label <- paste(sale_by_prop_month$month, sale_by_prop_month$year)
+
+sale_by_prop_month_2 <- sale_by_prop_month[,c("Property Type", "label", "total_units", "avg_price")]
+
+month_sale <- dcast(sale_by_prop_month_2, `Property Type` ~ `label`, value.var = "total_units")
+
+month_price <- dcast(sale_by_prop_month_2, `Property Type` ~ `label`, value.var = "avg_price")
+
+# Plotting distribution of sales by month 
+hist_plot <- ggplot(data = sale_by_prop_month, 
+                    aes(x= year_month, y = total_units, fill = `Property Type`)) + 
+  geom_col(color = "grey30") + ylim(0,2000) + 
+  geom_vline(
+    xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + scale_fill_manual(values = prop_col) + 
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5)) +
+  labs(title = "Distribution of Units Sale per Month", 
+       x = "No. of Units Sold", 
+       y = "Month")
+
+# Setting upper bound price for apartment
+upper_bound <- quantile(realis_clean2$`Transacted Price ($)`, 0.99)
+
+# Setting order
+prop_order <- c("Detached House", "Semi-Detached House","Terrace House", "Condominium", "Apartment", "Executive Condominium")
+
+realis_clean2$`Property Type` <- factor(realis_clean2$`Property Type`, levels = prop_order)
+
+# drawing graph --> see if can color code
+prop_price_dist <- ggplot(realis_clean2, 
+                     aes(x = `Property Type`, y = `Transacted Price ($)`, fill = `Property Type` )) +
+  stat_halfeye(adjust = 0.5,
+               justification = -0.2,
+               .width = 0,
+               point_colour = NA) +
+  geom_boxplot(width = .20,
+               outlier.shape = NA) +
+  stat_dots(side = "left", 
+            justification = 1.2, 
+            binwidth = .5,
+            dotsize = 2) +
+   coord_flip() +
+  ylim(0, upper_bound) + 
+  scale_fill_manual(values = prop_col)  + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) + geom_hline(yintercept = 2750000, color = "red", linetype = "dashed") + labs(title = "Spread of Transacted Price per Property Type", 
+       x = "Property Type", 
+       y = "Transacted Price")
+  
+
+```
+
+::: panel-tabset
+## Summary of Unit Sales per month
+
+```{r}
+kable(month_sale, caption = "Units sold per property type")
+
+print(paste("Maximum units sold per month is", max(sale_by_prop_month$total_units))) #max unit sold = 1444,
+```
+
+## Summary of Median Transaction Price per month
+
+```{r}
+kable(month_price, caption = "Average Price per property type")
+
+print(paste("Maximum Average Price per month is $", max(sale_by_prop_month$avg_price))) #max price $14,500,000
+
+```
+
+## Distribution of Transactions over Time
+
+```{r}
+hist_plot
+```
+
+## Spread of Price per Property Type
+
+```{r}
+prop_price_dist
+```
+:::
+
+#### 3.1.2 Transaction Price & No of Unit sold per Property Type
+
+[Steps taken:]{.underline}
+
+1.  Partitioning subset of the transaction records based on `Property Type`
+2.  Creating bar chart on the sum `No of Units` sold per month
+3.  Creating line graph on the median `Transaction Price` for the property sold that month
+4.  Including annotation to highlight trend in 2024 Q1
+
+```{r}
+# Segment into property type
+apt_by_month <- subset(sale_by_prop_month,  sale_by_prop_month$`Property Type` == "Apartment")
+ec_by_month <- subset(sale_by_prop_month,  sale_by_prop_month$`Property Type` == "Executive Condominium")
+c_by_month <- subset(sale_by_prop_month,  sale_by_prop_month$`Property Type` == "Condominium")
+t_by_month <- subset(sale_by_prop_month,  sale_by_prop_month$`Property Type` == "Terrace House")
+sd_by_month <- subset(sale_by_prop_month,  sale_by_prop_month$`Property Type` == "Semi-Detached House")
+d_by_month <- subset(sale_by_prop_month,  sale_by_prop_month$`Property Type` == "Detached House")
+
+## Apartment 
+# Understanding the dataset 
+# summary(apt_by_month)
+# Max units: 1444, max price = $1,875,000
+
+# Creating the graph
+## Apartment
+hist_plot_apt <- ggplot(data = apt_by_month, aes(x = year_month, y = total_units, fill = total_units)) +
+  geom_col() +
+  scale_fill_gradient(low = "#E0E0E0", high = "#000000", name = "Intensity", limit = c(0,2000)) +  # Apply a color scale for intensity
+  geom_line(aes(y = avg_price * 1500 / 2000000), color = "blue") +
+  scale_y_continuous(
+    name = "Apt",
+    limits = c(0, 1500),
+    sec.axis = sec_axis(~. * 2000000 / 1500, name = "Median Price")
+  ) + geom_vline(xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + theme(legend.position = "none", panel.background = element_rect(fill = "#CCE5FF"))
+
+## EC
+# summary(ec_by_month) 
+# max unit sold: 459, max avg price = 1504000
+
+hist_plot_ec <- ggplot(data = ec_by_month, 
+                    aes(x= year_month, y = total_units, fill = total_units)) +
+  geom_col() +
+  scale_fill_gradient(low = "#E0E0E0", high = "#000000", name = "Intensity", limit = c(0,2000)) + 
+  geom_line(aes(y = avg_price *500/1600000), color = "blue") + 
+   scale_y_continuous(name = "EC", 
+                      limits = c(0, 500), 
+                      sec.axis = sec_axis(~.*1600000/500) ) + geom_vline(xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + theme(legend.position = "none", panel.background = element_rect(fill = "#CCFF99")) + labs(title = "Unit Sold & Median Price over Months")
+
+## Condo
+# summary(c_by_month)
+# max unit sold: 1108, max price: 1780000
+
+hist_plot_c <- ggplot(data = c_by_month, 
+                    aes(x= year_month, y = total_units, fill = total_units)) +
+  geom_col() +
+  scale_fill_gradient(low = "#E0E0E0", high = "#000000", name = "Intensity", limit = c(0,2000)) + 
+  geom_line(aes(y = avg_price *1200/1800000), color = "blue") + 
+   scale_y_continuous(name = "Condo", 
+                      limits = c(0, 1200), 
+                      sec.axis = sec_axis(~.*1800000/1200) ) + geom_vline(xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + theme(legend.position = "none", panel.background = element_rect(fill = "#99CCFF" ))
+
+## Combining the plot
+hist_plot_apt <- hist_plot_apt + theme(axis.text.x = element_blank(), axis.line.x = element_blank(), axis.title.x = element_blank())
+hist_plot_ec <- hist_plot_ec + theme(axis.text.x = element_blank(), axis.line.x = element_blank(), axis.title.x = element_blank())
+hist_plot_c <- hist_plot_c + theme(axis.title.x = element_blank())
+
+combined_plot <- hist_plot_ec + hist_plot_apt + hist_plot_c + plot_layout(ncol = 1) + theme(axis.line.x = element_line(color = "black")) + theme(panel.grid = element_line(color = "white", linetype = "dotted")) 
+
+
+## Terrace
+# kable(summary(t_by_month))
+# max units: 95
+# max price: 3,844,000
+
+hist_plot_t <- ggplot(data = t_by_month, 
+                    aes(x= year_month, y = total_units, fill = total_units)) +
+  geom_col() +
+  scale_fill_gradient(low = "#E0E0E0", high = "#000000", name = "Intensity", limit = c(0,100)) + 
+  geom_line(aes(y = avg_price *100/4000000), color = "blue") + 
+   scale_y_continuous(name = "Terrace", 
+                      limits = c(0, 100), 
+                      sec.axis = sec_axis(~.*4000000/100) ) + geom_vline(xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + theme(legend.position = "none", panel.background = element_rect(fill = "#FFE5CC"))
+
+## Semi Detached
+# kable(summary(sd_by_month))
+# max unit: 67
+# max price: 6,539,400 
+
+hist_plot_sd <- ggplot(data = sd_by_month, 
+                    aes(x= year_month, y = total_units, fill = total_units)) +
+  geom_col() +
+  scale_fill_gradient(low = "#e0e0e0", high = "#000000", name = "Intensity", limit = c(0,100)) + 
+  geom_line(aes(y = avg_price *100/7000000), color = "blue") + 
+   scale_y_continuous(name = "Semi-Detached", 
+                      limits = c(0, 100), 
+                      sec.axis = sec_axis(~.*7000000/100, name = "Median Price") ) + geom_vline(xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + theme(legend.position = "none", panel.background = element_rect(fill = "#FFCC99"))
+
+
+## Detached
+# kable(summary(d_by_month))
+# max unit: 34
+# max price: 14,500,000
+
+hist_plot_d <- ggplot(data = d_by_month, 
+                    aes(x= year_month, y = total_units, fill = total_units)) +
+  geom_col() +
+  scale_fill_gradient(low = "#E0E0E0", high = "#000000", name = "Intensity", limit = c(0,100)) + 
+  geom_line(aes(y = avg_price *50/15000000), color = "blue") + 
+   scale_y_continuous(name = "Detached", 
+                      limits = c(0, 100), 
+                      sec.axis = sec_axis(~.*15000000/50) ) + geom_vline(xintercept = as.Date("2024-01-01") -15, color = "red", linetype = "dashed") + theme(legend.position = "none", panel.background = element_rect(fill = "#FF9933"))
+
+
+hist_plot_t <- hist_plot_t + theme(axis.text.x = element_blank(), axis.line.x = element_blank(), axis.title.x = element_blank())
+hist_plot_sd <- hist_plot_sd + theme(axis.text.x = element_blank(), axis.line.x = element_blank(), axis.title.x = element_blank())
+hist_plot_d <- hist_plot_d + theme(axis.title.x = element_blank())
+
+combined_plot_2 <- hist_plot_t + hist_plot_sd + hist_plot_d + plot_layout(ncol = 1) + theme(axis.line.x = element_line(color = "black")) 
+
+```
+
+::: panel-tabset
+## Unit Sale & Median Price for EC, Apt, Condo
+
+```{r}
+combined_plot
+```
+
+## Unit Sale & Median Price for Terrace, Semi-D, Detached
+
+```{r}
+combined_plot_2
+```
+
+## Summary for EC, Apt, Condo
+
+```{r}
+kable(summary(apt_by_month), caption = "Apartment Summary")
+kable(summary(ec_by_month), caption = "EC Summary")
+kable(summary(c_by_month), caption = "Terrace Summary")
+```
+
+## Summary for Terrace, Semi-D, Detached
+
+```{r}
+kable(summary(t_by_month), caption = "Terrace Summary")
+kable(summary(sd_by_month) , caption = "Semi Detached Summary")
+kable(summary(d_by_month), caption = "Detached Summary")
+```
+:::
+
+### 3.3 Visualization 2 - Exploring how Property Prices is affected by Location & Unit Size
+
+![](images/Visualisation2.png)
+
+[**Insights:**]{.underline}
+
+1.  Properties in CCR has a higher distribution of prices for both "Condo, Apartment, Resale EC" and "Terraces, Semi-Detached and Detached Houses", and can be attributed to the proximity to town.
+
+2.  There are higher volume of transaction for property in the "Rest of Core Region" and this may be due to the greater supply of units available for purchase.
+
+3.  There are no Executive Condominium in the CCR, and unit size in Condo have a wider spread than apartment regardless of region (CCR, RCR, OCR).
+
+4.  Detached house has the widest spread of unit size, even in CCR where land is limited. This contributes to the highest price of \$62 million. Terrace houses size are on average smaller than Semi-detached houses regardless of region.
+
+#### 3.3.1 - Price distribution of units sold based on `Planning Area`
+
+[Steps taken:]{.underline}
+
+-   Grouped into 2 major markets of
+
+    \(1\) Apartment & Condominium (with Resale Executive Condominium) and
+
+    \(2\) Terrace, Semi-detached Houses and Detached Houses.
+
+Note: Newly launched executive Condominium has been excluded as they prices are influenced by government subsidies and supply is restricted to newer estates and launches are infrequent.
+
+-   Using `ggridges` plot the density of units transacted for each group based on the respective `Planning Area` after segmenting by `Region Type` (CCR, OCR and RCR).
+-   For clearer depiction, the plots are sorted by median price for each `Planning Area`.
+-   To minimize distortion due to outlines, the scale is adjusted either manually or by percentile for each subset of data (by Property Type, by Region Type).
+
+```{r}
+#Segment into group 1
+apart_c_vis <- subset(realis_vis,  realis_vis$`Property Type` == c("Apartment","Condominium"))
+
+resale_ec_vis <- subset(realis_vis, (realis_vis$`Property Type`== "Executive Condominium" & realis_vis$`Type of Sale` == "Resale"))
+                        
+apt_c_resale_ec <- rbind(apart_c_vis, resale_ec_vis)
+
+# Setting Limits
+xupper <- quantile(apt_c_resale_ec$`Transacted Price ($)`, 0.99)
+
+#Segment into region
+apt_c_resale_ec_ccr <- subset(apt_c_resale_ec, apt_c_resale_ec$`Region_type`== "CCR")
+
+#assign color 
+quan_col <- c("1" = "#ccffcc", "2" = "#C0C0C0", "3" = "#C0C0C0", "4" = "#FF9999")
+
+
+# 1. Calculate median transaction price for each planning area
+median_prices_ccr <- apt_c_resale_ec_ccr %>%
+  group_by(`Planning Area`) %>%
+  summarize(median_price_ccr = median(`Transacted Price ($)`)) %>%
+  arrange(desc(median_price_ccr))
+
+# 2. Reorder levels of the 'Planning Area' factor based on median prices
+apt_c_resale_ec_ccr$`Planning Area` <- factor(apt_c_resale_ec_ccr$`Planning Area`, levels = median_prices_ccr$`Planning Area`)
+
+# 3. Plot the data with the reordered factor levels
+quan_ccr_grp1 <- ggplot(data = apt_c_resale_ec_ccr,
+                       aes(x = `Transacted Price ($)`, 
+                           y = `Planning Area`,
+                           fill = factor(stat(quantile))
+                       )) +
+  stat_density_ridges(
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE, 
+    quantiles = 4,
+    quantile_lines = TRUE
+  ) +
+  labs(title = "Transacted Price by Planning Area", y = "CCR") + 
+  scale_fill_manual(name = "Quartiles", values = quan_col) +
+  theme_ridges() + 
+  xlim(0, xupper) + theme(legend.position = "none",plot.margin = margin(5,5,5,5,"mm"), panel.background = element_rect(fill = "white"), plot.background = element_rect(fill = "#99CCFF"),axis.title.x = element_blank())
+
+## Repeat for the other 2 regions
+apt_c_resale_ec_rcr <- subset(apt_c_resale_ec, apt_c_resale_ec$`Region_type`== "RCR")
+
+median_prices_rcr <- apt_c_resale_ec_rcr %>%
+  group_by(`Planning Area`) %>%
+  summarize(median_price_rcr = median(`Transacted Price ($)`)) %>%
+  arrange(desc(median_price_rcr))
+
+apt_c_resale_ec_rcr$`Planning Area` <- factor(apt_c_resale_ec_rcr$`Planning Area`, levels = median_prices_rcr$`Planning Area`)
+
+#apt_c_resale_ec_rcr <- apt_c_resale_ec_rcr[complete.cases(apt_c_resale_ec_rcr$`Planning Area`), ]
+
+quan_rcr_grp1 <- ggplot(data = apt_c_resale_ec_rcr,
+                       aes(x = `Transacted Price ($)`, 
+                           y = `Planning Area`,
+                           fill = factor(stat(quantile))
+                       )) +
+  stat_density_ridges(
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE, 
+    quantiles = 4,
+    quantile_lines = TRUE
+  ) +
+  labs(y = "RCR") +
+  scale_fill_manual(name = "Quartiles", values = quan_col) +
+  theme_ridges() + 
+  xlim(0, xupper) + theme(legend.position = "none", plot.margin = margin(10,10,10,10,"mm"), panel.background = element_rect(fill = "white"), plot.background = element_rect(fill = "#99CCFF"),axis.title.x = element_blank())
+
+apt_c_resale_ec_ocr <- subset(apt_c_resale_ec, apt_c_resale_ec$`Region_type`== "OCR")
+
+median_prices_ocr <- apt_c_resale_ec_ocr %>%
+  group_by(`Planning Area`) %>%
+  summarize(median_price_ocr = median(`Transacted Price ($)`)) %>%
+  arrange(desc(median_price_ocr))
+
+apt_c_resale_ec_ocr$`Planning Area` <- factor(apt_c_resale_ec_ocr$`Planning Area`, levels = median_prices_ocr$`Planning Area`)
+
+#apt_c_resale_ec_ocr <- apt_c_resale_ec_ocr[complete.cases(apt_c_resale_ec_ocr$`Planning Area`), ]
+
+quan_ocr_grp1 <- ggplot(data = apt_c_resale_ec_ocr,
+                       aes(x = `Transacted Price ($)`, 
+                           y = `Planning Area`,
+                           fill = factor(stat(quantile))
+                       )) +
+  stat_density_ridges(
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE, 
+    quantiles = 4,
+    quantile_lines = TRUE
+  ) +
+  labs(y = "OCR") + 
+  scale_fill_manual(name = "Quartiles", values = quan_col) +
+  theme_ridges() + 
+  xlim(0, xupper) + theme(legend.position = "none", plot.margin = margin(10,10,10,10,"mm"), panel.background = element_rect(fill = "white"), plot.background = element_rect(fill = "#99CCFF"))
+
+## Repeat for Group 2 
+#Repeat for Terrace, Semi-Detached and Detached Houses
+t_sd_d_vis <- subset(realis_vis,  realis_vis$`Property Type` == c("Terrace House", "Semi-Detached House", "Detached House"))
+
+xupper2 <- quantile(t_sd_d_vis$`Transacted Price ($)`, 0.990)
+
+t_sd_d_ccr <- subset(t_sd_d_vis, t_sd_d_vis$`Region_type`== "CCR")
+
+median_prices_ccr2 <- t_sd_d_ccr %>%
+  group_by(`Planning Area`) %>%
+  summarize(median_price_ccr2 = median(`Transacted Price ($)`)) %>%
+  arrange(desc(median_price_ccr2))
+
+# 2. Reorder levels of the 'Planning Area' factor based on median prices
+t_sd_d_ccr$`Planning Area` <- factor(t_sd_d_ccr$`Planning Area`, levels = median_prices_ccr2$`Planning Area`)
+
+# 3. Plot the data with the reordered factor levels
+quan_ccr_grp2 <- ggplot(data = t_sd_d_ccr,
+                       aes(x = `Transacted Price ($)`, 
+                           y = `Planning Area`,
+                           fill = factor(stat(quantile))
+                       )) +
+  stat_density_ridges(
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE, 
+    quantiles = 4,
+    quantile_lines = TRUE
+  ) + labs(title = "Transacted Price by Planning Area", y = "CCR") +
+  scale_fill_manual(name = "Quartiles", values = quan_col) +
+  theme_ridges() + 
+  xlim(0, xupper2*2) + theme(legend.position = "none",plot.margin = margin(5,5,5,5,"mm"), panel.background = element_rect(fill = "white"), plot.background = element_rect(fill = "#FFCC99"), axis.title.x = element_blank())
+
+## Repeat for the other 2 regions
+t_sd_d_rcr <- subset(t_sd_d_vis, t_sd_d_vis$`Region_type`== "RCR")
+
+median_prices_rcr2 <- t_sd_d_rcr %>%
+  group_by(`Planning Area`) %>%
+  summarize(median_price_rcr2 = median(`Transacted Price ($)`)) %>%
+  arrange(desc(median_price_rcr2))
+
+t_sd_d_rcr$`Planning Area` <- factor(t_sd_d_rcr$`Planning Area`, levels = median_prices_rcr2$`Planning Area`)
+
+#apt_c_resale_ec_rcr <- apt_c_resale_ec_rcr[complete.cases(apt_c_resale_ec_rcr$`Planning Area`), ]
+
+quan_rcr_grp2 <- ggplot(data = t_sd_d_rcr,
+                       aes(x = `Transacted Price ($)`, 
+                           y = `Planning Area`,
+                           fill = factor(stat(quantile))
+                       )) +
+  stat_density_ridges(
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE, 
+    quantiles = 4,
+    quantile_lines = TRUE
+  ) + labs(y = "RCR") +
+  scale_fill_manual(name = "Quartiles", values = quan_col) +
+  theme_ridges() + 
+  xlim(0, xupper2) + theme(legend.position = "none", plot.margin = margin(10,10,10,10,"mm"), panel.background = element_rect(fill = "white"), plot.background = element_rect(fill = "#FFCC99"),axis.title.x = element_blank())
+
+t_sd_d_ocr <- subset(t_sd_d_vis, t_sd_d_vis$`Region_type`== "OCR")
+
+median_prices_ocr2 <- t_sd_d_ocr %>%
+  group_by(`Planning Area`) %>%
+  summarize(median_price_ocr2 = median(`Transacted Price ($)`)) %>%
+  arrange(desc(median_price_ocr2))
+
+t_sd_d_ocr$`Planning Area` <- factor(t_sd_d_ocr$`Planning Area`, levels = median_prices_ocr2$`Planning Area`)
+
+#apt_c_resale_ec_ocr <- apt_c_resale_ec_ocr[complete.cases(apt_c_resale_ec_ocr$`Planning Area`), ]
+
+quan_ocr_grp2 <- ggplot(data = t_sd_d_ocr,
+                       aes(x = `Transacted Price ($)`, 
+                           y = `Planning Area`,
+                           fill = factor(stat(quantile))
+                       )) +
+  stat_density_ridges(
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE, 
+    quantiles = 4,
+    quantile_lines = TRUE
+  ) + labs( y = "OCR") +
+  scale_fill_manual(name = "Quartiles", values = quan_col) +
+  theme_ridges() + 
+  xlim(0, 15000000) + theme(legend.position = "none", plot.margin = margin(10,10,10,10,"mm"), panel.background = element_rect(fill = "white"), plot.background = element_rect(fill = "#FFCC99"))
+```
+
+::: panel-tabset
+## CCR - Condo, EC, Apt
+
+```{r}
+quan_ccr_grp1
+```
+
+## RCR - Condo, EC, Apt
+
+```{r}
+quan_rcr_grp1
+```
+
+## OCR - Condo, EC, Apt
+
+```{r}
+quan_ocr_grp1
+```
+
+## CCR - Terrace, Semi-D, Detached
+
+```{r}
+quan_ccr_grp2
+```
+
+## RCR - Terrace, Semi-D, Detached
+
+```{r}
+quan_rcr_grp2
+```
+
+## OCR - Terrace, Semi-D, Detached
+
+```{r}
+quan_ocr_grp2
+```
+:::
+
+#### 3.3.2 - Unit Size distribution across the `Property Type`
+
+[Steps taken:]{.underline}
+
+1.  Scatter Plot for preliminary analysis for any correlation between `Transacted Price ($)` and `Area (SQFT)`
+2.  Further breakdown into violin plots to identify the most common `Area (SQFT)` for each property type.
+
+```{r}
+# Scatter Plot to identify any correlation
+size_plot <- ggplot(data= realis_vis, 
+                    aes(x= `Area (SQFT)` , 
+                        y= `Transacted Price ($)`, 
+                        color = `Property Type`)) + 
+  geom_point() + 
+  facet_grid("Region_type", scale = "free") + 
+  scale_color_manual(values = prop_col)+ 
+  geom_smooth(linewidth=0.5)
+
+# Identifying Quartiles for Unit Size for Condo, EC, Apartment
+apart_c_ec_vis <- subset(realis_vis,  realis_vis$`Property Type` == c("Apartment","Condominium", "Executive Condominium"))
+
+quartiles_df <- apart_c_ec_vis %>% 
+  group_by(`Property Type`) %>%
+  summarise(
+    Q1 = quantile(`Area (SQFT)`, 0.25),
+    Q2 = quantile(`Area (SQFT)`, 0.5), # Median
+    Q3 = quantile(`Area (SQFT)`, 0.75)
+  )
+
+# Violin Plot for Condo, EC, Apt
+property_types <- unique(apart_c_ec_vis$`Property Type`)
+property_type_positions <- setNames(seq_along(property_types), property_types)
+
+quartiles_df$Position <- with(quartiles_df, property_type_positions[as.character(`Property Type`)])
+
+size_dist_grp1 <- ggplot(apart_c_ec_vis, aes(x = `Property Type`, y = `Area (SQFT)`, fill = `Property Type`)) +
+  geom_violin(trim = FALSE) +
+  theme_light() +
+  facet_grid("Region_type") +
+  scale_fill_manual(values = prop_col) +
+  labs(title = "Violin Plot of Unit Size per house type",
+       x = "Property Type",
+       y = "Area (SQFT)") +
+  coord_cartesian(ylim = c(0, 6000)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_segment(data = quartiles_df, aes(x = Position - 0.4, xend = Position + 0.4, y = Q1, yend = Q1), 
+               linetype = "dashed", color = "darkgreen", linewidth = 0.1) +
+  geom_segment(data = quartiles_df, aes(x = Position - 0.4, xend = Position + 0.4, y = Q2, yend = Q2), 
+               linetype = "solid", color = "black", linewidth = 0.3) +
+  geom_segment(data = quartiles_df, aes(x = Position - 0.4, xend = Position + 0.4, y = Q3, yend = Q3), 
+               linetype = "dashed", color = "red", linewidth = 0.1)
+
+t_sd_d_vis <- subset(realis_vis,  realis_vis$`Property Type` == c("Terrace House", "Semi-Detached House", "Detached House"))
+
+quartiles_2_df <- t_sd_d_vis %>% 
+  group_by(`Property Type`) %>%
+  summarise(
+    Q1 = quantile(`Area (SQFT)`, 0.25),
+    Q2 = quantile(`Area (SQFT)`, 0.5),
+    Q3 = quantile(`Area (SQFT)`, 0.75)
+  )
+
+property_types <- unique(t_sd_d_vis$`Property Type`)
+property_type_positions <- setNames(seq_along(property_types), property_types)
+
+# Identifying Quartiles for Unit Size for Terrace, Semi-D, Detached
+quartiles_2_df$Position <- with(quartiles_2_df, property_type_positions[as.character(`Property Type`)])
+
+
+# Violin Plot for Terrace, Semi-D, Detached
+size_dist_grp2 <- ggplot(t_sd_d_vis, aes(x = `Property Type`, y = `Area (SQFT)`, fill = `Property Type`)) +
+  geom_violin(trim = FALSE) +
+   scale_fill_manual(values = prop_col) + 
+  theme_light() + facet_grid("Region_type") + 
+  labs(title = "Violin Plot of Unit Size per house type",
+       x = "Property Type",
+       y = "Area (SQFT)") + 
+  coord_cartesian(ylim = c(0,20000)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_segment(data = quartiles_2_df, aes(x = Position - 0.4, xend = Position + 0.4, y = Q1, yend = Q1), 
+               linetype = "dashed", color = "darkgreen", size = 0.1) +
+  geom_segment(data = quartiles_2_df, aes(x = Position - 0.4, xend = Position + 0.4, y = Q2, yend = Q2), 
+               linetype = "solid", color = "black", size = 0.3) +
+  geom_segment(data = quartiles_2_df, aes(x = Position - 0.4, xend = Position + 0.4, y = Q3, yend = Q3), 
+               linetype = "dashed", color = "red", size = 0.1)
+
+```
+
+::: panel-tabset
+## Scatter Plot (Price vs Area)
+
+```{r}
+size_plot
+```
+
+## Violin Plot - Apt, EC, Condo
+
+```{r}
+size_dist_grp1
+```
+
+## Summary - Apt, EC, Condo
+
+```{r}
+kable(quartiles_df, caption = "Breakdown of Unit Size by Quartiles (25%, 50%, 75%)")
+```
+
+## Violin Plot - Terrace, Semi-D, Detached
+
+```{r}
+size_dist_grp2
+```
+
+## Summary - Terrace, Semi-D, Detached
+
+```{r}
+kable(quartiles_2_df, caption = "Breakdown of Unit Size by Quartiles (25%, 50%, 75%)")
+```
+:::
+
+### **3.4 Visualization 3 - Exploring Private Residential Sub markets**
+
+##### ![](images/Visualisation3-01.png)
+
+[**Insights:**]{.underline}
+
+1.  Marine Parade, Bukit Timah and Ang Mo Kio (Including Lentor) has the most number of units sold from new launches. Large developments contribute substantially to the transaction during the period.
+2.  Price PSF varies greatly depending on the location of new launch, visibly linked to the region. E.g., Much higher \$3218 PSF in Novena (CCR) vs \$1300 PSF in Yishun (OCR).
+3.  For Marine Parade, excluding Grand Dunman and Tembusu Grand, the remaining \$3396 PSF is attributed to Freehold Detached Unit sold.
+4.  Most of the units that hit record prices belong to either new Condo and Apartment launches in CCR, or Semi-Detached and Detached houses in RCR and OCR.
+5.  Semi-Detached and Detached of freehold status or built before 2000s are in high demand, possibly due to potential buy-back and redevelopment.
+
+#### 3.4.1 - New Large Launches
+
+[Steps taken:]{.underline}
+
+1.  To understand where are the hot location for new condo launches, the `Number of Units sold` was summed per `Planning Area` and the median price PSF was calculated.
+2.  Subsequently, a bar chart was created to visualise the number of sales per planning region.
+3.  To highlight the contribution of the large new project launches to total sales per region, top 5 projects with highest units sold was highlighted within the bar chart.
+4.  To understand the "median price PSF" for each region, a dot plot was included in the secondary axis.
+
+```{r}
+# Suppose we're interested in highlighting these key projects:
+key_projects <- c("THE RESERVE RESIDENCES", "GRAND DUNMAN", "LENTOR HILLS RESIDENCES", "LENTOR MANSION", "TEMBUSU GRAND")
+
+# Create a new column to identify key projects
+large_new_launch$key_project_indicator <- ifelse(large_new_launch$`Project Name` %in% key_projects, large_new_launch$`Project Name`, "Other")
+
+# Create a summary of total sales by Planning Area and key project indicator
+sales_summary <- large_new_launch %>%
+  group_by(`Planning Area`, key_project_indicator) %>%
+  summarize(total_units_sold = sum(total_sale),
+            median_psf = median(as.numeric(`Unit_Price_PSF`)))
+
+sales_summary$`Planning Area` <- fct_reorder(sales_summary$`Planning Area`, sales_summary$total_units_sold, .desc = FALSE)
+
+# Bar Chart for Sales Summary of New Launches
+new_launch_plot <- ggplot(sales_summary, 
+                          aes(x = `Planning Area`, y = total_units_sold, 
+                              fill = key_project_indicator)) +
+  geom_col() + 
+  geom_point(aes(y = median_psf *600000/3000), color = "Black") + 
+  geom_text(aes(y = median_psf * 600000/3000, 
+                label = median_psf), color = "Black",
+            size = 2, 
+            nudge_y = 35000,nudge_x = 0.1, check_overlap = TRUE) +  
+  scale_y_continuous(sec.axis = sec_axis(~.*3000/600000)) + 
+  coord_flip() +  # Flip the coordinates to make it a horizontal bar chart
+  scale_fill_manual(values = c("THE RESERVE RESIDENCES" = "#595B3C", 
+                               "GRAND DUNMAN" = "#B67450", 
+                               "LENTOR HILLS RESIDENCES" = "#D9D1C4",
+                               "LENTOR MANSION" = "#000000",
+                               "TEMBUSU GRAND" = "#A59D86", 
+                               "Other" = "grey")) +
+  labs(title = "Breakdown of Large New Launches by Location", x = "Planning Area", y = "Total Units Sold", fill = "Project Name") + theme(legend.position = "none")
+
+# Incorporate legend of color for selected projects
+top_5_img <- readPNG("images/Top 5.png")
+img_grob <- rasterGrob(top_5_img, interpolate = TRUE)
+new_launch_plot_2 <- new_launch_plot + img_grob +
+  plot_layout(ncol = 2)
+
+```
+
+#### 3.3.2 - Luxury property (Top 2.5% of prices)
+
+[Steps Taken]{.underline}:
+
+1.  Identify the transactions that are of high value (Top 2.5%)
+
+2.  As properties of high value are typically influenced by their remaining lifespan or freehold status, a new variable of `age` was created to categorise units based on the remaining lifespan.
+
+3.  Plot a bar chart to show the distribution of luxury units by `Property Type` and color coded by `Age`.
+
+4.  Plot a scatter plot with best fit line to demonstrate relationship of `Transacted Price` to `Unit size` across the various `Region Type`
+
+```{r}
+units_per_reg_type <- ind_high_val %>%
+  group_by(`Region_type`, `Property Type`) %>%
+  mutate(total_units = sum(`Number of Units`)) %>%
+  ungroup()
+
+# Convert to category
+units_per_reg_type <- units_per_reg_type %>% 
+  mutate(age = case_when(
+    `Completion Date` == "Uncompleted" ~ "Building",
+    `Completion Date` == is.na(`Completion Date`) ~ "Freehold / 999 Leasehold",
+    (as.numeric(`Completion Date`) >= 1950 &  as.numeric(`Completion Date`) <= 1999) ~ "Before 2000s", 
+    (as.numeric(`Completion Date`) >= 2000 & as.numeric(`Completion Date`) <= 2024) ~ "After 2000s"))
+
+
+# Arranging 
+prop_order <- c("Detached House", "Semi-Detached House","Terrace House", "Condominium", "Apartment", "Executive Condominium")
+
+units_per_reg_type$`Property Type` <- factor(units_per_reg_type$`Property Type`, levels = prop_order)
+
+reg_order <- c("CCR", "RCR", "OCR")
+
+units_per_reg_type$`Region_type` <- factor(units_per_reg_type$`Region_type`, levels = reg_order)
+
+
+age_order <- c("Freehold / 999 Leasehold", "Before 2000s", "After 2000s", "Building")
+
+units_per_reg_type$`age` <- factor(units_per_reg_type$`age`, levels = age_order)
+
+# Plot distribution of luxury property by property type and age
+age_col = c("Freehold / 999 Leasehold" = "#000000", 
+            "Before 2000s" = "#7F5825", 
+            "After 2000s" = "#F6B35C" , 
+            "Building" = "#FAD7AA")
+
+dist_luxury <- ggplot(units_per_reg_type, aes(x = `Property Type`, y = `total_units`, fill = age)) +
+  geom_col() +
+  facet_grid("Region_type ~ .", scales = "free_y") +
+  scale_fill_manual(values = age_col) +
+  labs(title = "Number of Luxury Units per Property Type across Regions", 
+       x = "Property Type", 
+       y = "Number of Units Sold") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 5)) 
+
+# Plot scatter plot of luxury property by price and unit size
+ind_high_val$`Property Type` <- factor(ind_high_val$`Property Type`, levels = prop_order)
+
+ind_high_val$`Region_type` <- factor(ind_high_val$`Region_type`, levels = reg_order)
+
+luxury_plot <- ggplot(data=ind_high_val, 
+                      aes(x= `Area (SQFT)` , 
+                          y= `Transacted Price ($)`, 
+                          col = `Property Type`)) + 
+  geom_point() + 
+  scale_color_manual(values = prop_col) +
+  facet_grid("Region_type", 
+             scale = "free")+ geom_smooth(linewidth=0.5) + 
+  labs(title = "Price vs Area (SQFT) for Luxury Property")
+```
+
+::: panel-tabset
+## Summary of New Launches
+
+```{r}
+kable(sales_summary)
+```
+
+## Breakdown of Large New Launches by Location
+
+```{r}
+new_launch_plot_2
+```
+
+## Summary of Luxury Properties
+
+```{r}
+kable(units_per_reg_type)
+```
+
+## Number of Luxury Property Unit by Region
+
+```{r}
+dist_luxury
+```
+
+## Price vs Area (SQFT) of Luxury Property by Region
+
+```{r}
+luxury_plot
+```
+:::
