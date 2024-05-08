@@ -12,5 +12,19 @@
     "title": "About",
     "section": "",
     "text": "About this site\n\n1 + 1\n\n[1] 2"
+  },
+  {
+    "objectID": "Hands-on_Ex/Hands-on_Ex01/Hands-on_Ex01.html",
+    "href": "Hands-on_Ex/Hands-on_Ex01/Hands-on_Ex01.html",
+    "title": "Hands On Exercise 1",
+    "section": "",
+    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org.\n#import data (rmb to set working directory to common file) # rmb to activate readr package on right bottom panel\n\nlibrary(ggplot2) \nlibrary(readr) \nlibrary(tidyverse)  \nexam_data &lt;- read_csv(\"data/Exam_data.csv\")\n\n#plotting with BaseR for simple histogram\n\nhist(exam_data$MATHS)"
+  },
+  {
+    "objectID": "Hands-on_Ex/Hands-on_Ex01/Hands-on_Ex01.html#quarto",
+    "href": "Hands-on_Ex/Hands-on_Ex01/Hands-on_Ex01.html#quarto",
+    "title": "Hands On Exercise 1",
+    "section": "",
+    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org.\n#import data (rmb to set working directory to common file) # rmb to activate readr package on right bottom panel\n\nlibrary(ggplot2) \nlibrary(readr) \nlibrary(tidyverse)  \nexam_data &lt;- read_csv(\"data/Exam_data.csv\")\n\n#plotting with BaseR for simple histogram\n\nhist(exam_data$MATHS)"
   }
 ]

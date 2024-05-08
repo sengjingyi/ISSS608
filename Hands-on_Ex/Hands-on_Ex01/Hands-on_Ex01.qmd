@@ -1,0 +1,178 @@
+---
+title: "Hands On Exercise 1"
+author: "Seng Jing Yi"
+date: "April 13, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+#import data (rmb to set working directory to common file) \# rmb to activate readr package on right bottom panel
+
+```{r}
+library(ggplot2) 
+library(readr) 
+library(tidyverse)  
+exam_data <- read_csv("data/Exam_data.csv")
+```
+
+#plotting with BaseR for simple histogram
+
+```{r} 
+hist(exam_data$MATHS)
+```
+
+# why ggplot preferred - more customisations, wider range plot, integration with other packs
+
+# plotting with ggplot
+
+```{r}
+ggplot(data=exam_data, aes(x = MATHS)) + geom_histogram(bins=10, boundary = 100, color="black", fill="grey") + ggtitle("Distribution of Maths scores")
+```
+
+# Using layers and features - geombar
+
+```{r}
+ggplot(data=exam_data, aes(x=RACE)) + geom_bar()
+```
+
+# feature - geom_dotplot
+
+```{r}
+ggplot(data=exam_data, aes(x = MATHS)) + geom_dotplot(dotsize = 0.5)
+```
+
+# feature - geom_histogram
+
+```{r}
+ggplot(data=exam_data, aes(x = MATHS)) + geom_histogram()
+```
+
+# feature - modify with geom( )
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS)) + geom_histogram(bins=20,color="black",fill="light blue")
+```
+
+# feature - modifying aesthetic
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS, fill = GENDER)) + geom_histogram(bins=20, color="grey30")
+```
+
+# density estimate plot
+
+```{r}
+ggplot(data=exam_data, aes(x = MATHS)) + geom_density()
+```
+
+# Introducing another layer with gender
+
+```{r}
+ggplot(data=exam_data, aes(x = MATHS, colour = GENDER)) + geom_density()
+```
+
+# Boxplot
+
+```{r}
+ggplot(data=exam_data, aes(y = MATHS,x= GENDER)) +geom_boxplot()
+```
+
+# Using notch plot to see differing medians
+
+```{r}
+ggplot(data=exam_data, aes(y = MATHS, x= GENDER)) + geom_boxplot(notch=TRUE)
+```
+
+# violin plot to see distribution
+
+```{r}
+ggplot(data=exam_data, aes(y = MATHS, x= GENDER)) + geom_violin()
+```
+
+# geom point for scatter plot
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS, y=ENGLISH)) + geom_point()
+```
+
+# Combining geom point and boxplot
+
+```{r}
+ggplot(data=exam_data, aes(y = MATHS, x= GENDER)) + geom_boxplot() +geom_point(position="jitter", size = 0.5)
+```
+
+# Introducing statistics into plot
+
+```{r}
+ggplot(data=exam_data, aes(y = MATHS, x= GENDER)) + geom_boxplot() + stat_summary(geom = "point",fun ="mean",colour ="red",size=4)
+```
+
+# using geom() to override default stat value.
+
+```{r}
+ggplot(data=exam_data, aes(y = MATHS, x= GENDER)) + geom_boxplot() + geom_point(stat="summary",fun="mean",colour ="red",size=4)
+```
+
+# Adding best fit curve into scatter plot
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS, y=ENGLISH)) + geom_point() + geom_smooth(linewidth=0.5)
+```
+
+# facet-wrap
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS)) + geom_histogram(bins=20) + facet_wrap(~ CLASS)
+```
+
+# facet-wrap grid
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS)) + geom_histogram(bins=20) + facet_grid(~ CLASS)
+```
+
+# flipping coordinates - horizontal to vertical
+
+```{r}
+ggplot(data=exam_data, aes(x=RACE)) + geom_bar() + coord_flip()
+```
+
+# modifying x and y axis
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS, y=ENGLISH)) + geom_point() + geom_smooth(method=lm, size=0.5)
+```
+
+# defining plot so that axis is the same
+
+```{r}
+ggplot(data=exam_data, aes(x= MATHS, y=ENGLISH)) + geom_point() + geom_smooth(method=lm, size=0.5) +coord_cartesian(xlim=c(0,100), ylim=c(0,100))
+```
+
+# introducing themes - grey
+
+```{r}
+ggplot(data=exam_data, aes(x=RACE)) + geom_bar() + coord_flip() + theme_gray()
+```
+
+# theme - classic
+
+```{r}
+ggplot(data=exam_data, aes(x=RACE)) + geom_bar() + coord_flip() + theme_classic()
+```
+
+# theme - minimal
+
+```{r}
+ggplot(data=exam_data, aes(x=RACE)) + geom_bar() + coord_flip() + theme_minimal()
+```
