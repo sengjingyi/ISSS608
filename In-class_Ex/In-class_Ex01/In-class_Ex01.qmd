@@ -1,0 +1,34 @@
+---
+title: "In Class Exercise 1"
+author: "Seng Jing Yi"
+date: "April 13, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+format: html
+editor: visual
+---
+
+```{r}
+pacman::p_load(tidyverse)
+```
+
+```{r}
+realis <- read_csv("data/realis2019.csv")
+```
+
+## Loading R Packages
+
+In the code chunk below, [p_load()](https://www.rdocumentation.org/packages/pacman/versions/0.5.1/topics/p_load) of [pacman](https://cran.r-project.org/web/packages/pacman/index.html) package is used to load tidyverse family of packages.
+
+```{r}
+realis.csv <- read.csv("data/realis2019.csv")
+```
+
+```{r}
+ggplot(data = realis, 
+       aes(x= `Unit Price ($ psm)`)) + geom_histogram()
+```

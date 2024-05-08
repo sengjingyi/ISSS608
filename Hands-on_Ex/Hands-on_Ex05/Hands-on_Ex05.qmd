@@ -1,0 +1,15 @@
+---
+title: "Hands On Exercise 5"
+author: "Seng Jing Yi"
+date: "May 10, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+format: html
+editor: visual
+---
+
+# **Visualising and Analysing Text Data with R: tidytext methods**

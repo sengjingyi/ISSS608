@@ -1,0 +1,146 @@
+---
+title: "In-class Exercise 4"
+author: "Seng Jing Yi"
+date: "May 5, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+format: html
+editor: visual
+---
+
+Loading relevant packages
+
+```{r}
+pacman::p_load(tidyverse, ggstatsplot)
+```
+
+```{r}
+exam <- read_csv("data/Exam_data.csv") 
+```
+
+Applying [ggstatsplot](https://indrajeetpatil.github.io/ggstatsplot/)
+
+```{r}
+set.seed(1234)
+
+# Using parametric for histogram
+p <- gghistostats(data = exam,   
+             x = ENGLISH,   
+             type = "parametric",   
+             test.value = 60,   
+             bin.args = list(color = "black",                   
+                             fill = "grey 50",                   
+                             alpha = 0.7),  
+             normal.curve = FALSE,   
+             normal.curve.args = list(linewidth = 2),   
+             xlab = "English scores" )
+
+## 4 Types of distribution - Parametric, non-parametric, robust (exclude outliers), bayes
+p
+```
+
+```{r}
+# Extracting out tibblr
+extract_stats(p)
+```
+
+::: panel-tabset
+## Non-parametric
+
+```{r}
+gghistostats(data = exam,   
+             x = ENGLISH,   
+             type = "non-parametric",   
+             test.value = 60,   
+             bin.args = list(color = "black",                   
+                             fill = "grey 50",                   
+                             alpha = 0.7),  
+             normal.curve = FALSE,   
+             normal.curve.args = list(linewidth = 2),   
+             xlab = "English scores" )
+```
+
+## Robust
+
+```{r}
+gghistostats(data = exam,   
+             x = ENGLISH,   
+             type = "robust",   
+             test.value = 60,   
+             bin.args = list(color = "black",                   
+                             fill = "grey 50",                   
+                             alpha = 0.7),  
+             normal.curve = FALSE,   
+             normal.curve.args = list(linewidth = 2),   
+             xlab = "English scores" )
+```
+
+## Bayes
+
+```{r}
+gghistostats(data = exam,   
+             x = ENGLISH,   
+             type = "bayes",   
+             test.value = 60,   
+             bin.args = list(color = "black",                   
+                             fill = "grey 50",                   
+                             alpha = 0.7),  
+             normal.curve = FALSE,   
+             normal.curve.args = list(linewidth = 2),   
+             xlab = "English scores" )
+```
+:::
+
+[ggwithinstats](https://indrajeetpatil.github.io/ggstatsplot/articles/web_only/ggwithinstats.html)
+
+```{r}
+# Reformatting dataset such that each record includes: Student, Subject, Score. 
+
+exam_long <- exam %>% 
+  pivot_longer(
+    cols = ENGLISH:SCIENCE, 
+    names_to = "SUBJECT", 
+    values_to = "SCORES") %>%
+  filter(CLASS == "3A")
+
+
+# Comparing across 3 subjects
+p1 <- ggwithinstats(
+  data = exam_long, 
+  x = SUBJECT,
+  y = SCORES,
+  type = "p",
+)
+
+p1
+```
+
+```{r}
+## Plotting to include reference line that compares the student details side by side. 
+ggwithinstats(
+  data = filter(exam_long, SUBJECT %in% c('MATHS', 'SCIENCE')), 
+  x = SUBJECT, 
+  y = SCORES, 
+  type = "p"
+)
+
+# Filtering to math and science 
+```
+
+Scatterplot with histogram
+
+```{r}
+ggscatterstats(
+  data = exam, 
+  x = MATHS, 
+  y = ENGLISH, 
+  marginal = TRUE, 
+  label.var = ID, 
+  label.expression = ENGLISH > 90 & MATHS > 90)
+
+```
+
