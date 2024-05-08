@@ -759,7 +759,7 @@ vplot1_apt <- ggplot(data = pct_apt, aes(x = `Unit_Price_PSF`,
                               tooltip = pct_apt$tooltip)) +
   geom_violin(fill = "#CCE5FF", width = 0.3, alpha = 0.7) + 
   geom_boxplot(width = 0.1, fill = "white", alpha = 0.7) + 
-  labs(title = "Violin Plot", x = "Unit Price (PSF)", y = "Apartment")
+  labs(title = "Violin Plot", x = "Unit Price (PSF)", y = "Property Type")
 
 #vplot1_apt
 
@@ -772,7 +772,7 @@ vplot2_apt <- ggplot(data = pct_apt, aes(x = `Transacted_Price`,
                               tooltip = pct_apt$tooltip)) +
   geom_violin(fill = "#CCE5FF", width = 0.3, alpha = 0.7) + 
   geom_boxplot(width = 0.1, fill = "white", alpha = 0.7) + 
-  labs(title = "Violin Plot", x = "Transacted Price", y = "Apartment") + 
+  labs(title = "Violin Plot", x = "Transacted Price", y = "Property Type") + 
   scale_x_continuous(breaks = scales::pretty_breaks(n = 5), labels = scales::label_number(scale = 1), limits = c(0, 4500000)) + coord_flip()
 
 #vplot2_apt
