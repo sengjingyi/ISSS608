@@ -1,0 +1,119 @@
+---
+title: "In-class Exercise 5"
+author: "Seng Jing Yi"
+date: "May 11, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+format: html
+editor: visual
+---
+
+# Exploring Mini Challenge 1
+
+## VAST Challenge 2024
+
+Packages:
+
+-   [Quanteda](https://quanteda.io/) - Quantitative Analysis of Textual Data
+
+-   [Readtext](https://readtext.quanteda.io/) - For reading text files in their various format.
+
+-   [Tidytext](https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html) - R package for text mining
+
+```{r}
+pacman::p_load(tidyverse, readtext, quanteda, tidytext)
+```
+
+Reading data where "/\*" - Opening sub-directories within the data file and read ALL.
+
+```{r}
+text_data <- readtext(paste0("data/articles", "/*"))
+view(text_data)
+```
+
+Tokenising the article to identify key words (mainly nouns, excluding stop words)
+
+```{r}
+usenet_words <- text_data %>%
+  unnest_tokens(word,text) %>%
+  filter(str_detect(word, "[a-z']$"), 
+         !word %in% stop_words$word)
+
+view(usenet_words)
+```
+
+Counting the most frequent word after tokenising
+
+Consider: Stem to get the root form of the word before counting
+
+```{r}
+usenet_words %>%
+  count(word, sort = TRUE)
+```
+
+Breaking down the text data with `tidyr` - Regex with `separate_wider_delim` (Link: <https://tidyr.tidyverse.org/reference/separate_wider_delim.html>)
+
+```{r}
+text_data_splitted <- text_data %>% 
+  separate_wider_delim("doc_id", 
+                       delim = "__0__", 
+                       names = c("X", "Y"), 
+                       too_few = "align_end")
+
+```
+
+## References for text handling:
+
+1.  Text mining with R - tidytext: <https://www.tidytextmining.com/>
+2.  Using `stringr` to split text: <https://stringr.tidyverse.org/>
+3.  Using `tidyr` to delimit text files: <https://tidyr.tidyverse.org/>
+
+# Handling Network Data
+
+## Loading json package
+
+```{r}
+pacman::p_load(jsonlite, tidyverse, tidyr)
+```
+
+```{r}
+mc1_data <-fromJSON("data/mc1.json")
+```
+
+Data model: Multiple knowledge graph - Nodes and links (already in dataframe)
+
+Clicking into the nodes and link, will be able to see the underlying data.
+
+```{r}
+#Seeing the underlying data under nodes
+view(mc1_data[["nodes"]])
+view(mc1_data[["links"]])
+```
+
+```{r}
+mc2_data <- fromJSON("data/mc2.json")
+```
+
+```{r}
+view(mc2_data[["nodes"]])
+view(mc2_data[["links"]])
+```
+
+```{r}
+# Exporting for analysis
+
+#write_csv( mc1_data[["nodes"]], "mc1_nodes.csv")
+#write_csv(mc1_data[["links"]], "mc1_link.csv")
+#write_csv(mc2_data[["nodes"]], "mc2_nodes.csv")
+#write_csv(mc2_data[["links"]], "mc2_links.csv")
+```
+
+# Drawing graph with network data
+
+```{r}
+pacman::p_load(jsonlite, tidygraph, ggraph, visNetwork, graphlayouts, ggforce, skimr, tidytext, tidyverse)
+```
