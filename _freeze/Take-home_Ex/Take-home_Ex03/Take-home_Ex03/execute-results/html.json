@@ -1,0 +1,15 @@
+{
+  "hash": "4a72a8e5c34bc3d344df9a4bd25127b7",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Take-home Exercise 03\"\nauthor: \"Seng Jing Yi\"\ndate: \"May 18, 2024\"\ndate-modified: \"last-modified\"\nexecute: \n  eval: true\n  echo: true\n  warning: false\n  freeze: true\nformat: html\neditor: visual\n---\n\n\nLoading data\n\n\n::: {.cell}\n\n```{.r .cell-code}\npacman::p_load(jsonlite, tidyverse, tidyr)\n```\n:::\n\n::: {.cell}\n\n```{.r .cell-code}\nmc2_data <- fromJSON(\"data/mc2.json\")\n```\n:::\n\n::: {.cell}\n\n```{.r .cell-code}\n# Overview of links\nmc2_edges <- as_tibble(mc2_data$links)\n\n# Modifying the data type\nmc2_edges <- as_tibble(mc2_data$links) %>%\n  distinct() %>%\n  mutate(source = as.character(source), \n         target = as.character(target), \n         type = as.character(type)) %>%\n  group_by(source, target, type) %>%\n  summarise(weights = n()) %>%\n  filter(source != target) %>%\n  ungroup()\n```\n:::\n",
+    "supporting": [],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

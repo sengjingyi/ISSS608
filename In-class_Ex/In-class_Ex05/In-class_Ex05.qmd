@@ -112,6 +112,25 @@ view(mc2_data[["links"]])
 #write_csv(mc2_data[["links"]], "mc2_links.csv")
 ```
 
+## Exploring the articles data
+
+-   Looking for articles relating to illegal fishing behavior.
+
+-   Select terms include: "Overfishing", "Summons", "Illegal"
+
+```{r}
+# Define the terms to search for
+terms <- c("over fishing", "illegal", "summons", "police")
+
+# Create a subset of records containing the terms
+suspicious <- text_data_splitted %>%
+  filter(grepl(paste(terms, collapse = "|"), text, ignore.case = TRUE))
+
+view(suspicious)
+
+#write_csv(suspicious, "suspicious.csv")
+```
+
 # Drawing graph with network data
 
 ```{r}
