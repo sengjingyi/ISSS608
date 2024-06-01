@@ -60,15 +60,11 @@ oceanus_geog = st_read("data/Oceanus Geography.geojson")
 5.  Renaming of columns to provide context and unique identifiers for downstream data mapping.
 6.  Resultant data sets include:
 
-+------------------------------------+--------------------------------------------------------------------------------------------------------+
 | Resultant Edges Data Set           | Unique columns                                                                                         |
-+====================================+========================================================================================================+
+|------------------------------------|--------------------------------------------------------------------------------------------------------|
 | Transactions (i.e., tx_c)          | Cargo_id, Destination, Transaction date, Fish species                                                  |
-+------------------------------------+--------------------------------------------------------------------------------------------------------+
 | Transponder Ping (i.e., E_Tping_c) | Start_time, Dwell, Ping source, Vessel_id                                                              |
-+------------------------------------+--------------------------------------------------------------------------------------------------------+
 | Habor Arrival Report (E_Hbrpt_c)   | Vessel_id, Port, Key, Arrival date, Port master, Aphorism, Holiday Greeting, Saying of the Sea, Wisdom |
-+------------------------------------+--------------------------------------------------------------------------------------------------------+
 
 ```{r}
 #assigning to mc2_edges2
@@ -150,17 +146,12 @@ E_Hbrpt_c <- E_HarborRpt %>% rename(
 
 Repeating similar steps for `nodes` records, we obtained the following resultant data set. To minimize the number of data sets, we appended nodes information on vessels and region into a combined data set, with an assigned label to identify it's category. (e.g., vessel_type)
 
-+------------------------------------------+--------------------------------------------------------------------------------------------+
 | Resultant Nodes Data Sets                | Unique Columns                                                                             |
-+==========================================+============================================================================================+
+|------------------------------------------|--------------------------------------------------------------------------------------------|
 | N_fish (Fishes and their description)    | Fish_id, fish species                                                                      |
-+------------------------------------------+--------------------------------------------------------------------------------------------+
 | N_Delivery_Doc (Cargo and details)       | Cargo_id, quantity in tons, delivery date                                                  |
-+------------------------------------------+--------------------------------------------------------------------------------------------+
 | N_vessel (Vessels and their description) | Vessel_id, vessel name, vessel company, flag country, tonnage, overall length, vessel type |
-+------------------------------------------+--------------------------------------------------------------------------------------------+
 | Location_legend (Point, City, Region)    | Area, activities, kind, fish_species                                                       |
-+------------------------------------------+--------------------------------------------------------------------------------------------+
 
 ```{r}
 #segmenting nodes data and checking for distinct records
