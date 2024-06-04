@@ -1023,65 +1023,42 @@ route <- route %>% arrange(vessel_id, start_date)
 
 # vessel_id, trip length, location, possible fish species
 
-#write_csv(route, "data/route.csv")
 ```
 
 ```{r}
 # summarising route taken by vessels
 route_summary <- route %>%
-  group_by(vessel_id) %>%
-  mutate(route_list = ifelse(report == "hbrpt", list(area), NA),
+  mutate(route_list = ifelse(report == "hbrpt", area, NA),
+         probable_fish_species = ifelse(report == "hbrpt", fish_species_present, NA),
          route_start = ifelse(report == "hbrpt", start_date, NA),
          route_end = ifelse(report == "hbrpt", lead(start_date), NA)) %>%
-  fill(route_list, route_start, route_end, .direction = "down") %>%
+  fill(route_list, probable_fish_species, route_start, route_end, .direction = "down") %>%
   group_by(vessel_id, route_start) %>%
-  mutate(route_list = ifelse(is.na(report) | report != "hbrpt", NA, route_list)) %>%
+  mutate(route_list = ifelse(is.na(report) | report != "hbrpt", area, route_list),
+         probable_fish_species = ifelse(is.na(report) | report != "hbrpt", fish_species_present, probable_fish_species)) %>%
   group_by(vessel_id, route_start) %>%
-  mutate(route_list = list(unique(na.omit(route_list[which(start_date >= route_start & start_date <= route_end)])))) %>%
-  group_by(vessel_id, route_start) %>%
-  summarize(route_list = route_list, 
+  summarize(route_list = list(unique(route_list)), 
+            probable_fish_species = list(unique(probable_fish_species)),
             route_start = first(route_start), 
             route_end = last(route_end), 
-            .groups = 'drop') %>% 
+            .groups = 'drop') %>%
   distinct() %>%
   filter(!is.na(route_start))
 
-
 ```
 
+
 ```{r}
-# appending other relevant details 
-route_list <- route_summary$route_list
+# retaining only unique values 
 
-# Convert the list to a string of text delimited with commas
-route_list_text <- sapply(route_list, function(x) paste(x, collapse = ","))
-
-# Create a new dataframe with the text version of route_list
-route_summary_text <- route_summary %>%
-  mutate(route_list_text = route_list_text) %>%
-  select(-route_list) 
-
-route_summary_text <- route_summary_text %>%
-  mutate(route_list_text = gsub("c[(]", "", route_list_text)) %>% 
-  mutate(route_list_text = gsub("\"", "", route_list_text)) %>%
-  mutate(route_list_text = gsub("[)]", "", route_list_text)) 
-
-#write_csv(route_summary_text, "data/route_summary_text.csv")
+route_summary_unique <- route_summary %>%
+  mutate(route_list = sapply(route_list, function(x) paste(unique(unlist(strsplit(x, ", "))), collapse = ", ")),
+         probable_fish_species = sapply(probable_fish_species, function(x) paste(unique(unlist(strsplit(x, ", "))), collapse = ", ")))
 
 # merging with vessel details and potential fish species at the area
 
-# find_possible_species <- function(area, route_summary_text) {
-#   possible_species <- c()
-#   for (i in 1:nrow(route_summary_text)) {
-#     if (area %in% unlist(strsplit(route_summary_text[i, "route_list_text"], ","))) {
-#       possible_species <- c(possible_species, route_summary_text[i, "fish_species"])
-#     }
-#   }
-#   return(paste(unique(possible_species), collapse = ", "))
-# }
-# 
-# # Apply the function to each row of dataset 1
-# location_legend$fish_species_present <- sapply(location_legend$area, find_possible_species, route_summary_text)
+
+
 
 ```
 
@@ -1250,7 +1227,7 @@ ggplot(calendar_datass2, aes(x = day, y = month, fill = vessel_count)) +
 
 -   14 May 2035 for snappersnatcher7be at City of Lomark, Cod Table
 
--   6 May 2023 for roachrobberdb6 for City of Himark, Cod Table, Wrasse Bed
+-   6 May 2035 for roachrobberdb6 for City of Himark, Cod Table, Wrasse Bed
 
 ```{r}
 ping_activity_ss <- ping_activity %>% 
@@ -1265,6 +1242,148 @@ datatable(ping_activity_ss,
 ```
 
 Any new introduction of vessels after South Seafood Express was removed and date of first appearance.
+
+- No new vessel added (N_vessel$date_added >= 2023-05) = NA
+- No vessel amended (N_vessel$last_edited_date >= 2023-05) = yes - filter out to see (Salmon Snatcher)
+
+
+```{r}
+# Splitting dataframe to before and after SS was caught. 
+
+date_caught <- as.Date("2035-05-14")
+
+
+fish_v_activity_bef <- fish_v_activity %>% 
+mutate(start_date = as.Date(start_time)) %>%
+filter(start_date <= date_caught)
+
+fish_v_activity_aft <- fish_v_activity %>% 
+mutate(start_date = as.Date(start_time)) %>%
+filter(start_date > date_caught)
+
+# plot dwell time bef and after 
+fishing_dwell_aft <- ggplot(fish_v_activity_aft, aes(x = area, y = dwell)) +
+  geom_boxplot() +
+  geom_point(data = subset(fish_v_activity, vessel_id == "snappersnatcher7be"),
+             aes(x = area, y = dwell), color = "red", size = 1) +
+  geom_point(data = subset(fish_v_activity, vessel_id == "roachrobberdb6"),
+             aes(x = area, y = dwell), color = "orange", size = 1) +
+  theme_minimal() +
+  labs(title = "Median Dwell Time by Area", 
+       x = "Area", 
+       y = "Median Dwell Time") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_y_continuous(limits = c(0, 600000)) + # limit dwell 
+  coord_flip()
+
+
+fishing_dwell_bef <- ggplot(fish_v_activity_bef, aes(x = area, y = dwell)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Median Dwell Time by Area", 
+       x = "Area", 
+       y = "Median Dwell Time") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_y_continuous(limits = c(0, 600000)) + # limit dwell 
+  coord_flip()
+
+fishing_dwell_bef | fishing_dwell_aft
+
+# check logic - why ss appears in aft plot 
+
+# comparing median time spent at each area before and after
+
+fish_v_activity_bef_sum <- fish_v_activity_bef %>%
+  group_by(area) %>%
+  summarise(median_dwell = median(dwell, na.rm = TRUE))
+
+fish_v_activity_aft_sum <- fish_v_activity_aft %>%
+  group_by(area) %>%
+  summarise(median_dwell = median(dwell, na.rm = TRUE))
+
+fish_v_bef_aft <- left_join(fish_v_activity_bef_sum, fish_v_activity_aft_sum, by = c("area" = "area"))
+fish_v_bef_aft <- fish_v_bef_aft %>% 
+  rename(median_dwell_bef = median_dwell.x, median_dwell_aft = median_dwell.y) %>%
+  mutate(diff_bef_aft = median_dwell_bef - median_dwell_aft) %>% arrange(diff_bef_aft)
+
+ggplot(fish_v_bef_aft, aes(x= area, y = diff_bef_aft)) + geom_bar(stat = "identity")
+
+# reorder variable such that group ecological preserves together and ports tgt (see direct contrast)
+# highlight color - shift from fishing at Ghoti reserve to fishing at Lim Donpet Reserves
+
+```
+Comparison of vessel count per port per week before and after SS got caught
+14 May 2035 - Monday, Friday - 18 May 2035 
+
+```{r}
+
+fish_v_activity_bef_count <- fish_v_activity_bef %>%
+  group_by(start_date, area) %>%
+  summarize(fish_dist_count_bef = n_distinct(vessel_id)) %>% 
+  group_by(area) %>% 
+  summarize (fish_dist_total_bef = sum(fish_dist_count_bef))
+
+# check day diff - if inclusive / exclusive of date_caught +/- 1 days
+
+days_bef <- difftime(date_caught, min(fish_v_activity_bef$start_date),  units = "days") #102 days --> /7 for weeks
+days_aft <- difftime(max(fish_v_activity_aft$start_date), date_caught, units = "days") #199 days 
+
+fish_v_activity_aft_count <- fish_v_activity_aft %>%
+  group_by(start_date, area) %>%
+  summarize(fish_dist_count_aft = n_distinct(vessel_id)) %>% 
+  group_by(area) %>% 
+  summarize (fish_dist_total_aft = sum(fish_dist_count_aft)) 
+
+fish_v_count_bef_aft <- left_join(fish_v_activity_bef_count, fish_v_activity_aft_count, by = c("area" = "area"))
+fish_v_count_bef_aft <- fish_v_count_bef_aft %>% 
+  mutate(fish_dist_total_bef_weeks = (fish_dist_total_bef / as.numeric(days_bef))*7, 
+          fish_dist_total_aft_weeks = (fish_dist_total_aft/ as.numeric(days_aft))*7) %>% 
+  mutate(diff_count_bef_aft = fish_dist_total_bef_weeks - fish_dist_total_aft_weeks) %>% 
+  arrange(diff_count_bef_aft)
+
+ggplot(fish_v_count_bef_aft, aes(x= area, y = diff_count_bef_aft)) + geom_bar(stat = "identity")
+
+```
+
+
+Comparison of vessel that had drastic switch in route - different location (delta from paste route location and new route location)
+
+
+Comparison of cargo breakdown
+
+```{r}
+
+tx_qty_bef <- tx_qty1 %>% filter(tx_date <= date_caught)
+tx_qty_aft <- tx_qty1 %>% filter(tx_date > date_caught)
+
+# Calculate median quantity of fish per port 
+tx_qty_bef_sum <- tx_qty_bef %>% 
+  group_by(dest, fish_species) %>%
+  summarize(qty_tons_bef_sum = sum(qty_tons), cargo_bef_count = n())
+
+tx_qty_aft_sum <- tx_qty_aft %>%
+  group_by(dest, fish_species) %>%
+  summarize(qty_tons_aft_sum = sum(qty_tons), cargo_aft_count = n())
+
+tx_qty_bef_aft <- left_join(tx_qty_aft_sum, tx_qty_bef_sum, by = c("dest" = "dest", "fish_species" = "fish_species"))
+
+colnames(tx_qty_bef_aft)
+
+# adjustment to per week
+tx_qty_bef_aft <- tx_qty_bef_aft %>% 
+  mutate(qty_tons_aft_sum_week = (qty_tons_aft_sum / as.numeric(days_aft))*7,
+        cargo_aft_count_week = (cargo_aft_count / as.numeric(days_aft))*7, 
+qty_tons_bef_sum_week = (qty_tons_bef_sum / as.numeric(days_bef))*7,
+cargo_bef_count_week = (cargo_bef_count / as.numeric(days_bef))*7) #, 
+
+# include assign 0 to NA values + calculate differentials 
+# qty_tons_bef_aft_week = qty_tons_bef_sum_week - qty_tons_aft_sum_week, 
+# cargo_count_bef_aft_week = cargo_bef_count_week - cargo_aft_count_week)
+
+tx_count_bef_aft <- ggplot(tx_qty_bef_aft, aes(x= dest, y = diff_count_bef_aft)) + geom_bar(stat = "identity")
+
+```
+
 
 #### Quantity of cargo per city
 
