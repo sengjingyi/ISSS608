@@ -4,7 +4,7 @@ author: "Seng Jing Yi"
 date: "May 18, 2024"
 date-modified: "last-modified"
 execute: 
-  eval: true
+  eval: false
   echo: true
   warning: false
   freeze: true
@@ -46,7 +46,7 @@ pacman::p_load(jsonlite, tidyverse, tidyr,
 
 # load data
 mc2_data <- fromJSON("data/mc2.json")
-#oceanus_geog = st_read("data/Oceanus Geography.geojson") %>% st_transform(crs = 4326)
+oceanus_geog = st_read("data/Oceanus Geography.geojson") %>% st_transform(crs = 4326)
 ```
 
 ### 2.2. Data Cleaning
@@ -144,7 +144,7 @@ E_Hbrpt_c <- E_HarborRpt %>% rename(
 #Retain raw_source: Differing values depending on which Port / City
 # check meaning of key (0,1,2)
 
-rm(tx_sub1, tx_sub2, E_TransponderPing,  E_HarborRpt, E_Tx)
+rm(tx_sub1, tx_sub2, E_TransponderPing,  E_HarborRpt, E_Tx, mc2_edges, E_Tx_c)
 
 ```
 
@@ -239,8 +239,25 @@ N_vessel <- mc2_nodes_tidied %>%
 
 
 # Further exploring records where there is null values
-partial_na_records <- N_vessel[!complete.cases(N_vessel), ]
-kable(partial_na_records)
+partial_na_records <- N_vessel[!complete.cases(N_vessel), ] %>% 
+    select(-c(last_edited_by, date_added, last_edited_date)) 
+
+datatable(partial_na_records, 
+          options = list(pageLength = 5)) 
+
+partial_na_sum <- partial_na_records %>% 
+  group_by(vessel_type) %>% 
+  summarize(count = n()) 
+
+partial_na_plot <- ggplot(partial_na_sum, aes(x = vessel_type, y = count)) + 
+  geom_bar(stat = "identity", fill = "lightblue") + 
+  geom_text(aes(label = count), vjust = -0.2, size = 4) + 
+  labs(title = "Breakdown of vessel type for partial NA records", 
+       x = "Vessel Type",
+       y = "Count of vessel with NA") + theme_minimal(base_size = 12) + 
+  theme(axis.line = element_line(color = "black"))
+
+partial_na_plot
 
 # merging ping with location details (region_id, city_id, point_id)
 ## See how to deal with list within activites, and how to include region_kind
@@ -264,9 +281,15 @@ region_legend <- NL_Region %>%
 location_legend <- rbind(city_legend, point_legend, region_legend) 
 
 #dropping unnecessary tables
-rm(mc2_data, mc2_nodes_tidied, partial_na_records, city_legend, point_legend, region_legend)
+rm(mc2_data, mc2_nodes_tidied, partial_na_records, city_legend, point_legend, region_legend, partial_na_sum, partial_na_plot, mc2_nodes)
 
 ```
+
+Insights:
+
+-   Total of 18 vessels with partial NA
+-   all vessel company is unknown, belonging to Oceanus (flag_country = Oceanus)
+-   all 18 vessels fall under non fishing and non cargo_vessel type, hence, they will be excluded from our analysis.
 
 #### 2.2.5 Merging back the data after processing.
 
@@ -317,12 +340,101 @@ rm(tx_c, E_Tping_c2, E_Tping_c, E_Hbrpt_c)
 *Reference: [Kickstarter 3](https://isss608-ay2023-24apr.netlify.app/vast/kickstarter3#overview) by Prof Kam*
 
 ```{r}
-# ggplot(data = oceanus_geog) + geom_sf()
-# 
+ggplot(data = oceanus_geog) + geom_sf()
+
 # write_rds(oceanus_geog, "data/rds/OceanusGeography.rds")
-# 
-# OceanusLocations <- st_read(dsn = "data/shp",
-#   layer = "Oceanus Geography")
+
+OceanusLocations <- st_read(dsn = "data/shp",
+  layer = "Oceanus Geography")
+
+
+```
+
+```{r}
+write_rds(OceanusLocations, 
+  "data/rds/OceanusLocations.rds")
+
+# extract coordinates from df
+coords <- st_coordinates(OceanusLocations)
+
+# drop geometry columns
+OceanusLocations_df <- OceanusLocations %>%
+  st_drop_geometry()
+
+# append x and y coordinates into df as columns
+OceanusLocations_df$XCOORD <- coords[, "X"]
+OceanusLocations_df$YCOORD <- coords[, "Y"]
+
+# tidy df by renaming column 
+OceanusLocations_df <- OceanusLocations_df %>%
+  select(Name, X.Kind, XCOORD, YCOORD) %>%
+  rename(Loc_Type = X.Kind)
+
+# left join to append back to vessel movement 
+
+vessel_movement <- vessel_movement %>%
+  left_join(OceanusLocations_df,
+            by = c("area" = "Name"))
+
+# save file as vessel_movement_data.data.frame
+
+write_rds(vessel_movement, "data/rds/vessel_movement_data.rds")
+
+```
+
+```{r}
+# convert vessel movement data.frame into sf point data.frame 
+vessel_movement_sf <- vessel_movement %>%
+  st_as_sf(coords = c("XCOORD", "YCOORD"), 
+           crs = 4326)
+
+# arrange record based on vessel name and navigation time 
+vessel_movement_sf <- vessel_movement_sf %>%
+  arrange(vessel_id, start_time)
+
+# convert vessel movement sf from point into linestring features known as vessel trajectory
+vessel_trajectory <- vessel_movement_sf %>%
+  group_by(vessel_id) %>%
+  summarize(do_union = FALSE) %>%
+  st_cast("LINESTRING")
+
+## include placeholder for vessel of interest and colors assigned
+
+vessels_of_interest <- c("snappersnatcher7be", "roachrobberdb6")
+vessel_colors <- c("snappersnatcher7be" = "red", "roachrobberdb6" = "purple")
+
+# creating route for selected vessel 
+vessel_trajectory_selected <- vessel_trajectory %>%
+  filter(vessel_id %in% vessels_of_interest)
+
+# defining colors for X.kind
+
+kind_colors <- c(
+  "Island" = "beige", 
+  "Fishing Ground" = "lightblue", 
+  "Ecological Preserve" = "lightgreen", 
+  "city" = "purple", 
+  "buoy" = "blue")
+
+ggplot() +
+  geom_sf(data = oceanus_geog, aes(fill = X.Kind), color = "black") +
+  scale_fill_manual(values = kind_colors) + 
+  geom_sf(data = vessel_trajectory_selected, 
+          aes(color = vessel_id), 
+          size = 1) +
+  scale_color_manual(values = vessel_colors) + 
+  geom_text(data = OceanusLocations_df, 
+            aes(x = XCOORD, y = YCOORD, label = Name), 
+            size = 2, hjust = 1, vjust = 1) +
+  theme_minimal() +
+  labs(title = "Trajectories of South Seafood Express Corp", 
+       x = "Longitude", y = "Latitude", color = "Vessel ID")
+
+```
+
+
+```{r}
+
 ```
 
 #### 3.1 Understanding possible fish species and signs of illegal fishing
@@ -417,12 +529,29 @@ ggplot(total_qty_tons_per_dest, aes(x = dest, y = total_qty_tons, fill = fish_sp
 #### Exploring vessel tonnage by type and company
 
 ```{r}
+# Defining vessel colors 
+vessel_colors <- c("Fishing" = "#00CCCC", 
+    "Cargo_Vessel" = "#994C00", 
+    "Ferry_Cargo" = "#C0C0C0", 
+    "Ferry_Passenger" = "#C0C0C0",
+    "Research" = "#C0C0C0",
+    "Tour" = "#C0C0C0", 
+    "Other" = "#C0C0C0")
+
+#unique(N_vessel$vessel_type)
+
 scatter_ton_len <- ggplot(data= N_vessel, 
             aes(x= tonnage, 
                 y= length_overall, 
                 color= vessel_type)) +
   geom_point() + 
-  theme(legend.position = "top")
+  scale_color_manual(values = vessel_colors) + 
+labs(title = "Scatter Plot of Vessels by Size", 
+x = "Vessel Tonnage", 
+y = "Vessel Length") + 
+  theme_minimal(base_size = 8) + 
+  theme(legend.position = "top", 
+        axis.line = element_line(color = "black"))
 
 vessel_count <- N_vessel %>%
   group_by(vessel_type) %>%
@@ -432,36 +561,202 @@ vessel_count <- N_vessel %>%
 
 bar_vessel_type <- ggplot(data = vessel_count, 
                           aes(x = vessel_type, 
-                              y = vessel_no)) + 
+                              y = vessel_no, fill = vessel_type)) + 
   geom_bar(stat = "identity") + 
-  geom_text(aes(label = vessel_no), vjust = -0.8, size = 2) + 
-  theme(axis.text.x = element_text(size = 5))
+  scale_fill_manual(values = vessel_colors) + 
+  geom_text(aes(label = vessel_no), vjust = -0.8, size = 2) +
+  labs(title = "Count of Vessels by Type", 
+x = "Type of vessels registered", 
+y = "No. of vessels") + 
+  theme_minimal(base_size = 8) + 
+  theme(axis.text.x = element_text(size = 5), 
+        axis.line = element_line(color = "black")) 
 
 scatter_ton_len | bar_vessel_type
+
+rm(scatter_ton_len, bar_vessel_type, vessel_count)
+```
+
+Understanding ownership of vessels
+
+Insights: 98 company with only 1 type of ship, only Saltwater Sisters Company Marine has 2 types of vessel, vessels of other vessel_types belong to "Unknown" companies
+
+```{r}
+
+vessel_per_company <- N_vessel %>% 
+  group_by(vessel_company, vessel_type) %>% 
+  summarise(vessel_count = n()) %>% 
+  arrange(vessel_count)
+
+vessel_type_per_company <- vessel_per_company %>% 
+  group_by(vessel_company) %>% 
+  summarise(vessel_type_count = n()) %>% 
+  arrange(vessel_type_count)
+
+# Hence for plot, we will focus on vessel_type = "fishing" and "cargo_vessel"
+library(data.table)
+library(ggrepel)
+
+fish_vessel <- vessel_per_company %>% filter(vessel_type == "Fishing") %>% as.data.table
+fish_vessel_sum <- fish_vessel[, .(company_count = .N, company_names = toString(vessel_company)), by = vessel_count]
+
+#enforcing all x axis values for clearer depiction by introducing breaks
+fish_v_count_range <- seq(min(fish_vessel_sum$vessel_count), max(fish_vessel_sum$vessel_count))
+
+# introduce wrap text function to limit company name within the column
+wrap_text <- function(text, width = 15) {
+  sapply(text, function(x) {
+    paste(strwrap(x, width = width), collapse = "\n")
+  })
+}
+
+# applying to column
+fish_vessel_sum$wrapped_company_names <- wrap_text(fish_vessel_sum$company_names)
+
+# creating plot
+company_vessel_count <- ggplot(fish_vessel_sum, aes(x = vessel_count, y = company_count)) +
+  geom_bar(stat = "identity", fill = "#00CCCC", color = "black") +
+  geom_text(aes(label = company_count), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = fish_v_count_range) +
+  labs(title = "No. of fishing vessels Owned by companies",
+       x = "Number of Vessels Owned",
+       y = "Count of Companies") +
+  theme_minimal(base_size = 8) + 
+  theme(axis.line = element_line(color = "black"))+ 
+
+# including annotation ()
+ annotate("rect", xmin = 3.5, xmax = 6.5, ymin = 0, ymax = Inf, 
+           alpha = 0, color = "#FFBF00", fill = NA) +
+
+ annotate("text", x = 6, y = 5, label = "Ritter Ltd", size = 2) +
+  annotate("text", x = 4, y = 20, label = "McCormick Group,\nNielsen,\nValentine and Bell,\nRobinson,\nMcMillan and Watson,\nSolis-Lopez", size = 2)
+
+
+```
+
+Hence we will visualise the mapping of company to vessels for company that owns 3 or more vessels. (No of vessels of interest is adjustable)
+
+```{r}
+# creating subset
+no_of_interest = 4
+company_of_interest <- fish_vessel %>% filter(vessel_count >= no_of_interest)
+
+int_fish_v_mapping <- N_vessel %>% filter(vessel_company %in% company_of_interest$vessel_company) %>% select(vessel_id, vessel_company, tonnage)
+
+# data wrangling to fit into network graph
+edges <- int_fish_v_mapping %>%
+  select(vessel_id, vessel_company)
+
+# Create nodes for vessels
+nodes <- int_fish_v_mapping %>%
+  select(vessel_id, tonnage) %>%
+  distinct() %>%
+  rename(name = vessel_id) %>%
+  mutate(type = "vessel")
+
+# Create nodes for companies
+company_nodes <- data.frame(name = unique(int_fish_v_mapping$vessel_company)) %>%
+  mutate(type = "company")
+
+# Combine nodes
+all_nodes <- bind_rows(nodes, company_nodes)
+
+# Create the graph object using igraph
+network <- graph_from_data_frame(d = edges, vertices = all_nodes, directed = FALSE)
+
+# Add tonnage as a vertex attribute, ensuring NA values are handled
+V(network)$tonnage <- ifelse(is.na(V(network)$tonnage), 0, V(network)$tonnage)
+
+# Add node type as a vertex attribute
+V(network)$type <- all_nodes$type
+
+# Plot the network graph using ggraph
+map_vessel_company <- ggraph(network, layout = 'fr') +
+  geom_edge_link(aes(edge_alpha = 0.5), show.legend = FALSE) +
+  geom_node_point(aes(size = tonnage, color = type), show.legend = TRUE) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 2) +
+  scale_color_manual(values = c("vessel" = "#00CCCC", "company" = "black")) +
+  theme_void(base_size = 8) +
+  labs(title = "Network Graph of Vessels and Companies",
+       size = "Tonnage",
+       color = "Node Type") + theme(legend.position = "bottom")
+
+company_vessel_count | map_vessel_company
+
+# cleaning environment
+rm(no_of_interest, company_of_interest, int_fish_v_mapping, edges, nodes, company_nodes, all_nodes, network, map_vessel_company)
+
 ```
 
 Focusing on Fishing vessels and Cargo vessels, identifying the distribution of ships and companies owning this ship
 
 ```{r}
+# segmenting data set to focus on fishing and cargo vessels 
 
 fishing_v <- N_vessel %>% filter(vessel_type == "Fishing")
 cargo_v <- N_vessel %>% filter(vessel_type == "Cargo_Vessel")
 
+# calculating the quantiles for the respective vessel type 
+
+fishing_v_ton_quant <- fishing_v %>%
+  summarise(
+    q25 = quantile(tonnage, 0.25),
+    median = median(tonnage),
+    q75 = quantile(tonnage, 0.75)
+  )
+
+cargo_v_ton_quant <- cargo_v %>%
+  summarise(
+    q25 = quantile(tonnage, 0.25),
+    median = median(tonnage),
+    q75 = quantile(tonnage, 0.75)
+  )
+
+# plot for fishing vessel distribution of tonnage
 fishing_v_dist <- ggplot(fishing_v, aes(x = tonnage)) +
-  geom_histogram(binwidth = 500, fill = "blue", color = "black") +
+  geom_histogram(binwidth = 500, fill = "#00CCCC", color = "black") +
+  annotate("rect", xmin = 12500, xmax = Inf, ymin = -Inf, ymax = Inf, 
+    alpha = 0, color = "#FFBF00") +
+  geom_vline(aes(xintercept = fishing_v_ton_quant$q25), 
+    color = "blue", linetype = "dashed") +
+  geom_vline(aes(xintercept = fishing_v_ton_quant$median),
+   color = "red", linetype = "dashed") +
+  geom_vline(aes(xintercept = fishing_v_ton_quant$q75), 
+    color = "blue", linetype = "dashed") +
+  annotate("text", x = fishing_v_ton_quant$q25, y = 30, 
+    label = paste("25%", fishing_v_ton_quant$q25) , vjust = -1, size = 3) +
+  annotate("text", x = fishing_v_ton_quant$median, y = 30, 
+    label = paste("50%",fishing_v_ton_quant$median), vjust = -1, size = 3) +
+  annotate("text", x = fishing_v_ton_quant$q75, y = 30, 
+    label = paste("75%", fishing_v_ton_quant$q75),  vjust = -1, size = 3) + 
   labs(title = "Distribution of Fishing Vessels by Tonnage",
        x = "Tonnage",
        y = "Frequency") +
-  theme_minimal() + coord_flip()
+  theme_minimal(base_size = 8) + 
+  theme(axis.line = element_line(color = "black")) + 
+  coord_flip()
 
-# include boxplot to see quartile 
+# Adjust label to readable format 
+# Adjust order so that the text is above the 
 
 cargo_v_dist <- ggplot(cargo_v, aes(x = tonnage)) +
-  geom_histogram(binwidth = 500, fill = "orange", color = "black") +
+  geom_histogram(binwidth = 500, fill = "#994C00", color = "black") +
+ annotate("rect", xmin = -Inf, xmax = 5000, ymin = -Inf, ymax = Inf, alpha = 0, color = "#FFBF00") +
+  annotate("rect", xmin = 70000, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0, color = "#FFBF00") +
+  geom_vline(aes(xintercept = cargo_v_ton_quant$q25), color = "blue", linetype = "dashed") +
+  geom_vline(aes(xintercept = cargo_v_ton_quant$median), color = "red", linetype = "dashed") +
+  geom_vline(aes(xintercept = cargo_v_ton_quant$q75), color = "blue", linetype = "dashed") +
+  annotate("text", x = cargo_v_ton_quant$q25, y = 30, 
+    label = paste("25%", cargo_v_ton_quant$q25), vjust = -1, size = 3) +
+  annotate("text", x = cargo_v_ton_quant$median, y = 30, 
+    label = paste("50%",cargo_v_ton_quant$median), vjust = -1, size = 3) +
+  annotate("text", x = cargo_v_ton_quant$q75, y = 30, 
+    label = paste("75%", cargo_v_ton_quant$q75), vjust = -1, size = 3) +
   labs(title = "Distribution of Cargo Vessels by Tonnage",
        x = "Tonnage",
        y = "Frequency") +
-  theme_minimal() + 
+  theme_minimal(base_size = 8) + 
+  theme(axis.line = element_line(color = "black")) + 
   coord_flip()
 
 #summary(fishing_v) - min: 100, q1: 600, median: 2400, q3: 4850, max: 17200 - investigate
@@ -504,19 +799,31 @@ fish_v_activity_sum <- fish_v_activity %>%
 # kable(ETping_vessel)
 # Flag out vessels that entered restricted zone
 
+unique(fish_v_activity$area)
+
+# assigning order to the plot
+fish_v_activity$area <- factor(fish_v_activity$area, levels = c("Nav E", "Nav D", "Nav C" , "Nav B", "Nav A" , "Nav 3", "Nav 2", "Nav 1", "Ghoti Preserve", "Don Limpet Preserve", "Nemo Reef", "Cod Table","Tuna Shelf","Wrasse Beds","Exit East", "City of South Paackland", "City of Paackland","City of Lomark","City of Himark","City of Haacklee","City of Port Grove"))
+
+# annotate area labels by color 
+
 fishing_dwell <- ggplot(fish_v_activity, aes(x = area, y = dwell)) +
+annotate("rect", ymin = -Inf, ymax = Inf, xmin = 15.5 , xmax = 20.5, alpha = 0.8, fill = "brown") +    # Ports
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 11.5, xmax = 14.5, alpha = 0.8, fill = "lightblue") +  # Fishing ground
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 8.5, xmax = 11.5, fill = "lightgreen", alpha = 0.9) +  # Ecological preserve
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 0.5, xmax = 8.5, alpha = 0.8, fill = "blue") +
   geom_boxplot() +
   geom_point(data = subset(fish_v_activity, vessel_id == "marinemarauder8c9"),
              aes(x = area, y = dwell), color = "red", size = 1) +
   geom_point(data = subset(fish_v_activity, vessel_id == "pikepirate89a"),
              aes(x = area, y = dwell), color = "blue", size = 1) +
-  theme_minimal() +
+  theme_minimal(base_size = 8) +
   labs(title = "Median Dwell Time by Area", 
        x = "Area", 
        y = "Median Dwell Time") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
-  scale_y_continuous(limits = c(0, 600000)) + # limit dwell 
-  coord_flip()
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        axis.line = element_line(color = "black")) + 
+  scale_y_continuous(limits = c(0, 600000)) + 
+  coord_flip()  
 
 ```
 
@@ -554,11 +861,12 @@ cargo_dwell <- ggplot(cargo_v_activity, aes(x = area, y = dwell)) +
              aes(x = area, y = dwell), color = "orange", size = 1) +
   geom_point(data = subset(cargo_v_activity, vessel_id == selected_vessel2),
              aes(x = area, y = dwell), color = "purple", size = 1) +
-  theme_minimal() +
+  theme_minimal(base_size = 8) +
   labs(title = "Median Dwell Time by Area", 
        x = "Area", 
        y = "Median Dwell Time") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        axis.line = element_line(color = "black")) + 
   scale_y_continuous( limits = c(0, 20000)) + #zoom into 2 * 10^5
   coord_flip()
 
@@ -1023,42 +1331,76 @@ route <- route %>% arrange(vessel_id, start_date)
 
 # vessel_id, trip length, location, possible fish species
 
-```
-
-```{r}
-# summarising route taken by vessels
-route_summary <- route %>%
-  mutate(route_list = ifelse(report == "hbrpt", area, NA),
-         probable_fish_species = ifelse(report == "hbrpt", fish_species_present, NA),
-         route_start = ifelse(report == "hbrpt", start_date, NA),
-         route_end = ifelse(report == "hbrpt", lead(start_date), NA)) %>%
-  fill(route_list, probable_fish_species, route_start, route_end, .direction = "down") %>%
-  group_by(vessel_id, route_start) %>%
-  mutate(route_list = ifelse(is.na(report) | report != "hbrpt", area, route_list),
-         probable_fish_species = ifelse(is.na(report) | report != "hbrpt", fish_species_present, probable_fish_species)) %>%
-  group_by(vessel_id, route_start) %>%
-  summarize(route_list = list(unique(route_list)), 
-            probable_fish_species = list(unique(probable_fish_species)),
-            route_start = first(route_start), 
-            route_end = last(route_end), 
-            .groups = 'drop') %>%
-  distinct() %>%
-  filter(!is.na(route_start))
+write_csv(route , "data/route.csv")
 
 ```
 
+```{r}
+route_data <- route %>%
+  group_by(vessel_id) %>%
+  mutate(trip_id = cumsum(report == "hbrpt")) %>%
+  ungroup()
+
+# Function to process routes for each vessel
+process_routes <- function(data) {
+  data %>%
+    group_by(vessel_id, trip_id) %>%
+    summarise(
+      route_start = first(start_date[report == "hbrpt"]),
+      route_end = last(start_date[report == "hbrpt"]),
+      route_list = paste(
+        c(first(area[report == "hbrpt"]), 
+          unique(area[report == "transponderping"]),
+          last(area[report == "hbrpt"])), 
+        collapse = ", "
+      ),
+      probable_fish_species = paste(unique(fish_species_present[report == "transponderping"]), collapse = ", "), 
+final_area = last(area[report  == "hbrpt"])
+    ) %>%
+    ungroup()
+}
+
+# Apply the function to the dataset
+concatenated_routes <- process_routes(route_data)
+
+# date is wrong for start date 
+
+```
 
 ```{r}
-# retaining only unique values 
+# filtering to only focus on routes with expected catch
 
-route_summary_unique <- route_summary %>%
-  mutate(route_list = sapply(route_list, function(x) paste(unique(unlist(strsplit(x, ", "))), collapse = ", ")),
-         probable_fish_species = sapply(probable_fish_species, function(x) paste(unique(unlist(strsplit(x, ", "))), collapse = ", ")))
+route_w_catch <- concatenated_routes %>% 
+  filter(probable_fish_species != "" & 
+  probable_fish_species != "NA")
 
-# merging with vessel details and potential fish species at the area
+# convert fish species to aligned format
 
+library(stringr)
 
+replacements <- c(
+  `Cod/Gadus n.specificatae` = "gadusnspecificatae4ba", 
+  `Birdseye/Pisces frigus` = "piscesfrigus900", 
+  `Sockfish/Pisces foetida` = "piscesfoetidaae7", 
+  `Wrasse/Labridae n.refert` = "labridaenrefert9be", 
+  `Beauvoir/Habeas pisces` = "habeaspisces4eb", 
+  `Harland/Piscis sapidum` = "piscissapidum9b7", 
+  `Tuna/Thunnini n.vera` = "thunnininveradb7", 
+  `Offidiaa/Piscis osseus` = "piscisosseusb6d", 
+  `Helenaa/Pisces satis` = "piscessatisb87", `NA` = "")
 
+route_w_catch <- route_w_catch %>%
+  mutate(probable_fish_species = str_replace_all(probable_fish_species, replacements)) 
+
+ m3 <- tx_qty1 %>% 
+  left_join(route_w_catch, by = c("dest" = "final_area", "tx_date" = "route_end")) %>%   filter(grepl(fish_species, probable_fish_species))
+
+#some cargo dropped - fish species not within list (only 2627 returned, out of 5307)
+# analyse missing cargo 
+
+#filtering where vessel went to unique locations, but no expected catch or no fishing areas reached 
+
+#suspicious_route <- 
 
 ```
 
@@ -1243,9 +1585,8 @@ datatable(ping_activity_ss,
 
 Any new introduction of vessels after South Seafood Express was removed and date of first appearance.
 
-- No new vessel added (N_vessel$date_added >= 2023-05) = NA
-- No vessel amended (N_vessel$last_edited_date >= 2023-05) = yes - filter out to see (Salmon Snatcher)
-
+-   No new vessel added (N_vessel\$date_added \>= 2023-05) = NA
+-   No vessel amended (N_vessel\$last_edited_date \>= 2023-05) = yes - filter out to see (Salmon Snatcher)
 
 ```{r}
 # Splitting dataframe to before and after SS was caught. 
@@ -1312,8 +1653,8 @@ ggplot(fish_v_bef_aft, aes(x= area, y = diff_bef_aft)) + geom_bar(stat = "identi
 # highlight color - shift from fishing at Ghoti reserve to fishing at Lim Donpet Reserves
 
 ```
-Comparison of vessel count per port per week before and after SS got caught
-14 May 2035 - Monday, Friday - 18 May 2035 
+
+Comparison of vessel count per port per week before and after SS got caught 14 May 2035 - Monday, Friday - 18 May 2035
 
 ```{r}
 
@@ -1345,9 +1686,7 @@ ggplot(fish_v_count_bef_aft, aes(x= area, y = diff_count_bef_aft)) + geom_bar(st
 
 ```
 
-
 Comparison of vessel that had drastic switch in route - different location (delta from paste route location and new route location)
-
 
 Comparison of cargo breakdown
 
@@ -1383,7 +1722,6 @@ cargo_bef_count_week = (cargo_bef_count / as.numeric(days_bef))*7) #,
 tx_count_bef_aft <- ggplot(tx_qty_bef_aft, aes(x= dest, y = diff_count_bef_aft)) + geom_bar(stat = "identity")
 
 ```
-
 
 #### Quantity of cargo per city
 
