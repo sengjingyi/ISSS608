@@ -62,7 +62,7 @@ website:
           - text: "Take-home Exercise 2"
             href: "Take-home_Ex/Take-home_Ex02/Take-home_Ex02.html"
           - text: "Take-home Exercise 3"
-            href: "Take-home_Ex/Take-home_Ex03/Take-home_Ex03_3.html"
+            href: "Take-home_Ex/Take-home_Ex03/Take-home_Ex03_EDA_1.html"
       - href: index.qmd
         text: Home
       - about.qmd

@@ -1,0 +1,538 @@
+---
+title: "Take-home Exercise 3 - MC2 Sub Qn 1"
+author: "Seng Jing Yi"
+date: "May 18, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: false
+  echo: true
+  warning: false
+  freeze: true
+editor: visual
+
+format:
+  html:
+    code-fold: true
+---
+
+Import packages
+
+```{r}
+pacman::p_load(jsonlite, tidyverse, tidyr, 
+               knitr, lubridate, dplyr, 
+               igraph, ggraph, ggdist, ggplot2, 
+               SmartEDA, sf, tidygraph, reshape2, readr,
+               DT, patchwork,plotly)
+```
+
+Import relevant datasets
+
+```{r}
+
+tx_qty <- read_csv("data/tx_qty.csv")
+ping_activity <- read_csv("data/ping_activity.csv")
+E_Hbrpt_v <- read_csv("data/hbrpt.csv")
+
+N_vessel <- read_csv("data/N_vessel.csv")
+location_legend <- read_csv("data/location_legend.csv")
+
+```
+
+Restating defined conditions and filtering for key data subsets
+
+```{r}
+
+vessel_colors <- c("Fishing" = "#00CCCC", 
+    "Cargo_Vessel" = "#994C00", 
+    "Ferry_Cargo" = "#C0C0C0", 
+    "Ferry_Passenger" = "#C0C0C0",
+    "Research" = "#C0C0C0",
+    "Tour" = "#C0C0C0", 
+    "Other" = "#C0C0C0")
+
+
+# factoring of area
+ping_activity$area <- factor(ping_activity$area, 
+                             levels = c("Nav E", "Nav D", "Nav C" , "Nav B", "Nav A" ,
+                                        "Nav 3", "Nav 2", "Nav 1", 
+                                        "Ghoti Preserve", "Don Limpet Preserve", "Nemo Reef", 
+                                        "Cod Table","Tuna Shelf","Wrasse Beds",
+                                        "Exit East", 
+                                        "City of South Paackland", "City of Paackland","City of Lomark","City of Himark","City of Haacklee","City of Port Grove"))
+
+# filtering for fishing and cargo vessels
+
+fishing_v <- N_vessel %>% filter(vessel_type == "Fishing")
+cargo_v <- N_vessel %>% filter(vessel_type == "Cargo_Vessel")
+
+# filtering for fishing vessel activity and cargo vessel activity
+
+fish_v_activity <- ping_activity %>% 
+  filter(vessel_id %in% fishing_v$vessel_id)
+
+cargo_v_activity <- ping_activity %>% 
+  filter(vessel_id %in% cargo_v$vessel_id)
+
+# including date that south seafood was caught
+date_caught <- as.Date("2035-05-14")
+
+```
+
+4.Addressing Mini-challenge 2 questions
+
+4.1 Sub-question 1: Mapping Cargo to Vessels
+
+Preliminary comparison of total count per port
+
+-   Does purpose or vessel type affect visits - Port Grove only Tourism
+-   Comparing records, habor report includes port grove which is not present in transaction report, hence we will exclude port grove from analysis.
+
+Data Processing: Multiple pings from same vessel at same port on the same date, but differing time (hours and minutes) hence, group by same date, same port, and count unique vessel_id.
+
+Subsequently when plotting, excluded the date to aggregate counts per port.
+
+```{r}
+# Comparing entries per port with boxplot
+
+## tx_qty -> Type of species per port 
+cargo_count <- tx_qty %>%
+  group_by(dest) %>%
+  summarize(cargo_count = n())
+
+unique_dest <- unique(cargo_count$dest) # only 5 cities
+
+## count of vessel by port
+hb_count <- E_Hbrpt_v %>%
+  group_by(port) %>%
+  summarize(vessel_total = n()) 
+
+unique_port <- unique(hb_count$port) # 6 cities
+
+## To recalculate based on distinct vessel per day per port. 
+fish_dist_p_count <- fish_v_activity %>%
+  mutate(date = as.Date(start_time)) %>%
+  group_by(area, date) %>%
+  summarize(fishv_dist_p_count = n_distinct(vessel_id)) %>%
+  filter(area %in% unique_port)
+
+fish_dist_pcount2 <- fish_dist_p_count %>%
+  group_by(area) %>%
+  summarize(fish_dist_count = n())
+
+## calculate for cargo vessels
+
+cargo_dist_p_count <- cargo_v_activity %>%
+  mutate(date = as.Date(start_time)) %>%
+  group_by(area, date) %>%
+  summarize(cargov_dist_p_count = n_distinct(vessel_id)) %>%
+  filter(area %in% unique_port)
+
+cargo_dist_pcount2 <- cargo_dist_p_count %>%
+  group_by(area) %>%
+  summarize(cargo_dist_count = n())
+
+# merge for plot 
+count <- merge(cargo_count, hb_count, by.x = "dest", by.y = "port", all = TRUE)
+count <- merge(count, fish_dist_pcount2, by.x = "dest", by.y = "area", all = TRUE)
+count <- merge(count, cargo_dist_pcount2, by.x = "dest", by.y = "area", all = TRUE)
+count <- count %>% mutate(across(everything(), ~replace_na(., 0)))
+
+count$dest <- factor(
+  count$dest, 
+  levels = c("City of Port Grove", "City of Haacklee", "City of Himark", 
+             "City of Lomark", "City of Paackland", "City of South Paackland")) 
+
+# reshape for plot 
+count2 <- count %>%
+  gather(key = "type", value = "count", cargo_count, vessel_total, fish_dist_count, cargo_dist_count)
+
+count2$type <- factor(count2$type, levels = c("cargo_count", "vessel_total", "fish_dist_count", "cargo_dist_count"))
+
+# Define color for the plot
+
+type_colors <- c("cargo_count" = "#F8766D", 
+                   "vessel_total" = "black", 
+                   "fish_dist_count" = "#00CCCC", 
+                   "cargo_dist_count" = "#994C00")
+
+
+# Plot the grouped bar chart with labels
+ggplot(count2, aes(x = dest, y = count, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.25, size = 2) + 
+  labs(title = "Comparison of Vessel Count and Cargo Count by Destination",
+       x = "Destination",
+       y = "Count of vessel / cargo",
+       fill = "Type") +
+  scale_fill_manual(values = type_colors) +  # Set the custom colors
+  theme_minimal(base_size = 8) +
+  theme(axis.line = element_line(color = "black"))
+
+```
+
+## Possible considerations
+
+1 vessel may contribute to various cargo
+
+However, as mentioned in the data description, no harbor reports the vessels everyday, the dataset used of `Event.HarborReport` might not have the complete depiction of the vessels arrival.
+
+To supplement this, we will combine with the `Event.TransponderPing` records for better match.
+
+Attempt #1 to map cargo to vessel by date
+
+```{r}
+
+# coloring by illegal fish species 
+cargo_color <- c("Legal" = "#99CCFF", "Salmon" = "#FFFF99", "Illegal" = "#FF6666")
+
+illegal_species = c("piscesfoetidaae7", "piscisosseusb6d", "piscessatisb87")
+legal_species =  c("gadusnspecificatae4ba", "piscissapidum9b7", "habeaspisces4eb", "piscesfrigus900", "labridaenrefert9be", "thunnininveradb7")
+salmon = c("oncorhynchusrosea790")
+
+cargo_summary <- tx_qty %>%
+  mutate(month = floor_date(as.Date(tx_date), "month"), 
+         species_type = case_when(
+           fish_species %in% illegal_species ~ "Illegal", 
+           fish_species %in% legal_species ~ "Legal", 
+           fish_species %in% salmon ~ "Salmon"
+         )) %>%
+  group_by(dest, month, species_type) %>%
+  summarize(cargo_count = n()) 
+
+#refactoring to put illegal species at bottom
+cargo_summary$species_type <- factor(cargo_summary$species_type, levels = c("Salmon", "Legal", "Illegal"))
+
+# calculating median and total cargo count for annotation
+
+median_counts <- cargo_summary %>%
+  group_by(dest) %>%
+  summarize(median_count = median(cargo_count))
+
+# Plot the stacked bar graph with reference lines and text labels
+ggplot(cargo_summary, aes(x = month, y = cargo_count, fill = species_type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = cargo_color) +  # Set the custom colors
+  geom_hline(data = median_counts, aes(yintercept = median_count), linetype = "dashed", color = "black") +
+  geom_vline(xintercept = as.numeric(date_caught), linetype = "dashed", color = "red") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") + 
+  labs(title = "Monthly Cargo Count per Port",
+       x = "Month",
+       y = "Count of Cargo",
+       fill = "Species Type") +
+  facet_grid(dest ~ ., switch = "y") +
+  theme_minimal(base_size = 10) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.line = element_line(color = "black"),
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y.left = element_text(angle = 0)) + 
+   annotate("text", x = date_caught, y = 320, label = "Date caught", color = "red", hjust = 1, size = 3)
+
+```
+
+Attempt to map vessel to cargo
+
+| Matching Method                                                              | \% Match           | \% Mis-match      |
+|-------------------------------------------|---------------|---------------|
+| Tx_c (Cargo import) with E_Hbrpt_v (Vessel Harbor Arrival) by date           | 2454 / 5307 = 46%  | 2853 / 5307 = 54% |
+| Tx_c (Cargo Import) with Ping Activity (Vessel at port) by date              | 5307 / 5307 = 100% |                   |
+| Tx_c (Fish Species) with Ping Activity (Past route & probable fishes caught) |                    |                   |
+
+```{r}
+# cleaning tx_qty to align date-time to only date 
+tx_qty1 <- tx_qty %>% 
+  mutate(tx_date = as.Date(tx_date))
+
+m1 <- tx_qty1 %>% left_join(E_Hbrpt_v %>% select(arr_date, port, vessel_id), 
+                            by = c("tx_date" = "arr_date", "dest" = "port")) %>%
+  group_by(cargo_id, dest, tx_date) %>%
+  summarize(probable_vessel = list(vessel_id), .groups = "drop")
+
+m1_summary <- m1 %>%
+  mutate(match_status = ifelse(is.na(probable_vessel), "NA", "Matched")) %>%
+  group_by(match_status) %>%
+  summarize(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+# santising ping activity to table with unique vessel_id per port per date.
+
+ping_activity_c <- ping_activity %>%
+  filter(area %in% unique_port, vessel_type == c("Fishing", "Cargo_Vessel")) %>%
+  mutate(start_date = as.Date(start_time)) %>%
+  group_by(start_date, area) %>% 
+  summarize(probable_vessel = list(unique(vessel_id)), .groups = "drop") 
+
+m2 <- tx_qty1 %>% left_join(ping_activity_c, 
+                            by = c("tx_date" = "start_date", "dest" = "area")) %>%
+  group_by(cargo_id, dest, tx_date)
+
+m2_summary <- m2 %>%
+  mutate(match_status = ifelse(is.na(probable_vessel), "NA", "Matched")) %>%
+  group_by(match_status) %>%
+  summarize(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+# mapping route of boats by integrating harbor report
+
+## santising ping activity to focus on fishing and cargo vessels, create new column to assign report type as "transponderping" 
+
+ping_movement <- ping_activity %>%
+  filter(vessel_type == c("Fishing", "Cargo_Vessel")) %>%
+  mutate(start_date = as.Date(start_time)) %>%
+  select( c("start_date", "area", "kind", "Activities", "vessel_id", "fish_species_present", "vessel_type", "vessel_company")) %>%
+  mutate(report = "transponderping")
+
+# aligning columns of E_Hbrpt_v with ping movement (need to match activities with N_City, varying activities per city)
+
+port_record <- E_Hbrpt_v %>% 
+  left_join(NL_City, by = c("port" = "city_id")) %>%
+  mutate(report = "hbrpt", kind = "city", fish_species_present = NA) %>% 
+  rename(area = port, 
+         start_date = arr_date) %>%
+  select(c("start_date", "area", "kind", "Activities", "vessel_id", "fish_species_present", "vessel_type", "vessel_company", "report"))
+
+# merge route movement
+route <- bind_rows(ping_movement, port_record)
+route <- route %>% arrange(vessel_id, start_date)
+
+# vessel_id, trip length, location, possible fish species
+
+#write_csv(route , "data/route.csv")
+
+
+
+```
+
+```{r}
+route_data <- route %>%
+  group_by(vessel_id) %>%
+  mutate(trip_id = cumsum(report == "hbrpt")) %>%
+  ungroup()
+
+# Function to process routes for each vessel
+process_routes <- function(data) {
+  data %>%
+    group_by(vessel_id, trip_id) %>%
+    summarise(
+      route_start = first(start_date[report == "hbrpt"]),
+      route_end = last(start_date[report == "hbrpt"]),
+      route_list = paste(
+        c(first(area[report == "hbrpt"]), 
+          unique(area[report == "transponderping"]),
+          last(area[report == "hbrpt"])), 
+        collapse = ", "
+      ),
+      probable_fish_species = paste(unique(fish_species_present[report == "transponderping"]), collapse = ", "), 
+final_area = last(area[report  == "hbrpt"])
+    ) %>%
+    ungroup()
+}
+
+# Apply the function to the dataset
+concatenated_routes <- process_routes(route_data)
+
+# date is wrong for start date 
+
+```
+
+```{r}
+# filtering to only focus on routes with expected catch
+
+route_w_catch <- concatenated_routes %>% 
+  filter(probable_fish_species != "" & 
+  probable_fish_species != "NA")
+
+write_csv(route_w_catch, "data/route_w_catch.csv")
+
+# convert fish species to aligned format
+
+library(stringr)
+
+replacements <- c(
+  `Cod/Gadus n.specificatae` = "gadusnspecificatae4ba", 
+  `Birdseye/Pisces frigus` = "piscesfrigus900", 
+  `Sockfish/Pisces foetida` = "piscesfoetidaae7", 
+  `Wrasse/Labridae n.refert` = "labridaenrefert9be", 
+  `Beauvoir/Habeas pisces` = "habeaspisces4eb", 
+  `Harland/Piscis sapidum` = "piscissapidum9b7", 
+  `Tuna/Thunnini n.vera` = "thunnininveradb7", 
+  `Offidiaa/Piscis osseus` = "piscisosseusb6d", 
+  `Helenaa/Pisces satis` = "piscessatisb87", `NA` = "")
+
+route_w_catch <- route_w_catch %>%
+  mutate(probable_fish_species = str_replace_all(probable_fish_species, replacements)) 
+
+unique(tx_qty1$fish_species)
+
+# consider excluding cargo with salmon catch, because not possible to map - remaining 5003
+tx_qty_wo_sal <- tx_qty1 %>% filter(fish_species != "oncorhynchusrosea790")
+
+# exact match on date = 2514
+ m3 <- tx_qty_wo_sal %>% 
+  left_join(route_w_catch, by = c("dest" = "final_area", "tx_date" = "route_end")) %>%   
+   filter(grepl(fish_species, probable_fish_species))
+
+# Exploring cargos with no match vessels 
+
+mismatched_cargo_m3 <- anti_join(tx_qty_wo_sal, m3, by = "cargo_id") #4057 returned 
+
+# attempt to match cargo to vessel by location (834060 observations returned) - 788038
+
+m3_wo_date <- tx_qty_wo_sal %>% 
+  left_join(route_w_catch, by = c("dest" = "final_area")) %>% filter(grepl(fish_species, probable_fish_species))
+
+#write_csv(m3_wo_date, "data/m3_wo_date.csv")
+
+# doing analysis by time
+# +2 days - 394120
+
+m3_filtered_2days <- m3_wo_date %>%
+  filter(any(tx_date <= route_end + 2 & tx_date >= route_end)) %>%
+  distinct(cargo_id, vessel_id, .keep_all = TRUE) 
+
+# +1 days - 394120
+
+m3_filtered_1days <- m3_wo_date %>%
+  filter(any(tx_date <= route_end + 1 & tx_date >= route_end)) %>%
+  distinct(cargo_id, vessel_id, .keep_all = TRUE)
+
+# returning records with nearest date - 11513 
+nearest_tx_date <- m3_wo_date %>%
+  group_by(cargo_id) %>%
+  filter(tx_date > route_end) %>%  
+  filter(abs(difftime(tx_date, route_end, units = "days")) == min(abs(difftime(tx_date, route_end, units = "days")))) %>%
+  ungroup()
+
+# understanding any cargo not mapped - 46 (not sure why, but should have mapping)
+mismatched_cargo_nearest_tx <- anti_join(tx_qty_wo_sal, nearest_tx_date, by = "cargo_id")
+
+unique(mismatched_cargo_nearest_tx$fish_species) #labridaenrefert9be
+
+# understanding average days diff
+
+nearest_tx_date <- nearest_tx_date %>%
+  mutate(days_diff = as.numeric(difftime(tx_date, route_end, units = "days")))
+
+# Group by days_diff and count the number of records
+days_diff_summary <- nearest_tx_date %>%
+  group_by(days_diff) %>%
+  summarize(count = n())
+
+# Plot the bar chart
+ggplot(days_diff_summary, aes(x = days_diff, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Count of Records by Difference in Days",
+       x = "Difference in Days",
+       y = "Count of Records") +
+  theme_minimal(base_size = 10) +
+  theme(axis.line = element_line(color = "black"))
+
+
+#filtering where vessel went to unique locations, but no expected catch or no fishing areas reached 
+
+#suspicious_route <- 
+
+```
+
+Evaluating appropriateness of match - #count of match & mis-match
+
+```{r}
+# Comparing count of cargo and count of vessel at habor by date and port
+
+vessel_type_summary <- E_Hbrpt_v %>%
+  group_by(port, arr_date, vessel_type) %>%
+  summarize(vessel_type_count = n())
+
+# reclass to split count by vessel type
+vessel_type_summary_reshaped <- dcast(vessel_type_summary, port + arr_date ~ vessel_type, value.var = "vessel_type_count", fill = 0)
+
+# combine individual vessel type
+vessel_summary2 <- vessel_type_summary_reshaped %>%
+  rename(date = arr_date, port = port) 
+
+# combine total count of vessel
+vessel_summary <- vessel_summary %>%
+  rename(date = arr_date, port = port) 
+
+# combine cargo count
+cargo_summary2 <- cargo_summary %>% 
+  mutate(tx_date = as.Date(tx_date)) %>%
+  rename(date = tx_date, port = dest) # Assuming 'dest' is the correct column name in tx_qty
+
+# Merge the datasets by date and port
+by_time <- merge(vessel_summary2, vessel_summary, by = c("port", "date"), all = TRUE)
+by_time <- merge(by_time, cargo_summary2, by = c("port", "date"), all = TRUE)
+
+
+# test
+by_time <- by_time %>% mutate(diff_combined = vessel_count - cargo_count, 
+                              diff_cargo_v = Cargo_Vessel - cargo_count, 
+                              diff_fish_v = Fishing - cargo_count)
+
+view(by_time)
+
+
+```
+
+To minimize load time, a subset of the data will be used to exemplify the interactivity
+
+1. Filter by specified date range 
+2. Filter by port of interest - Taking 1 ending port - Port of Paackland which has highest number of illegal species fished
+3. Demonstrate the vessels and cargo mapped
+
+Alternative view - filter by fish species of interest - E.g., Salmon to identify route and common time spent
+Box plot of time spent at location 
+
+Rank routes that are taken the most 
+
+
+```{r}
+
+library(visNetwork)
+
+# Prepare the data with unique vertex names
+data <- nearest_tx_date %>%
+  mutate(cargo_id_vertex = paste0("cargo_", cargo_id),
+         vessel_id_vertex = paste0("vessel_", vessel_id))
+
+# Create a combined node list
+nodes <- data %>%
+  select(cargo_id_vertex, vessel_id_vertex) %>%
+  gather(key = "type", value = "name") %>%
+  distinct(name) %>%
+  mutate(id = name)
+
+# Create an edge list with unique vertex names
+edges <- data %>%
+  select(cargo_id_vertex, vessel_id_vertex, tx_date) %>%
+  group_by(cargo_id_vertex, vessel_id_vertex, tx_date) %>%
+  summarize(weight = n(), .groups = 'drop') %>%
+  rename(from = cargo_id_vertex, to = vessel_id_vertex)
+
+data <- data %>%
+  mutate(month = format(as.Date(tx_date), "%Y-%m"))
+
+edges <- edges %>%
+  left_join(data %>% select(cargo_id_vertex, vessel_id_vertex, month), by = c("from" = "cargo_id_vertex", "to" = "vessel_id_vertex"))
+
+generate_network_plot <- function(month) {
+  # Filter data for the selected month
+  edges_filtered <- edges %>% filter(month == month)
+  nodes_filtered <- nodes %>% filter(id %in% c(edges_filtered$from, edges_filtered$to))
+  
+  # Create the visNetwork plot
+  visNetwork(nodes_filtered, edges_filtered, width = "100%", height = "600px") %>%
+    visEdges(arrows = "to") %>%
+    visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+    visInteraction(navigationButtons = TRUE) %>%
+    visLayout(randomSeed = 123)
+}
+
+
+generate_network_plot("2035-05")
+
+
+
+```
