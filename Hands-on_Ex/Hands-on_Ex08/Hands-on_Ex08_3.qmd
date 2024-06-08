@@ -77,7 +77,9 @@ In much of our readings we have now seen the importance to map rates rather than
 We will tabulate the proportion of functional water points and the proportion of non-functional water points in each LGA. In the following code chunk, `mutate(`) from **dplyr** package is used to derive two fields, namely *pct_functional* and *pct_nonfunctional*.
 
 ```{r}
-NGA_wp <- NGA_wp %>%   mutate(pct_functional = wp_functional/total_wp) %>%   mutate(pct_nonfunctional = wp_nonfunctional/total_wp)
+NGA_wp <- NGA_wp %>%   
+  mutate(pct_functional = wp_functional/total_wp) %>%   
+  mutate(pct_nonfunctional = wp_nonfunctional/total_wp)
 ```
 
 ### **4.2 Plotting map of rate**
@@ -109,7 +111,9 @@ Step 2: Creating customised classification and extracting values
 ```{r}
 percent <- c(0,.01,.1,.5,.9,.99,1) 
 
-#var <- NGA_wp["pct_functional"] %>% st_set_geometry(NULL) quantile(var[,1], percent)
+var <- NGA_wp["pct_functional"] %>% st_set_geometry(NULL) 
+
+quantile(var[,1], percent)
 ```
 
 ::: callout-important
@@ -142,17 +146,18 @@ Firstly, we will write an R function as shown below to extract a variable (i.e.Â
 
     -   v: vector with values (without a column name)
 
-```{r}
-# echo: false 
-# function_1 <- source("function_1.r", local = knitr::knit_global())$value
+```{r, include = FALSE}
+#| echo: false
+function_1 <- source("function_1.R", local = knitr::knit_global())$value
 ```
 
 #### 5.1.4 A percentile mapping function
 
 Next, we will write a percentile mapping function by using the code chunk below.
 
-```{r}
-#percent_map.fx.R
+```{r, include = FALSE}
+#| echo: false
+percentmap <- source("percentmap_fx.R", local = knitr::knit_global())$value
 ```
 
 #### 5.1.5 Test drive the percentile mapping function
@@ -160,7 +165,7 @@ Next, we will write a percentile mapping function by using the code chunk below.
 To run the function, type the code chunk as shown below.
 
 ```{r}
-# percentmap("total_wp", NGA_wp)
+percentmap("total_wp", NGA_wp)
 ```
 
 Note that this is just a bare bones implementation. Additional arguments such as the title, legend positioning just to name a few of them, could be passed to customise various features of the map.
@@ -170,17 +175,17 @@ Note that this is just a bare bones implementation. Additional arguments such as
 In essence, a box map is an augmented quartile map, with an additional lower and upper category. When there are lower outliers, then the starting point for the breaks is the minimum value, and the second break is the lower fence. In contrast, when there are no lower outliers, then the starting point for the breaks will be the lower fence, and the second break is the minimum value (there will be no observations that fall in the interval between the lower fence and the minimum value).
 
 ```{r}
-# ggplot(data = NGA_wp,
-#        aes(x = "",
-#            y = wp_nonfunctional)) +
-#   geom_boxplot()
+ggplot(data = NGA_wp,
+       aes(x = "",
+           y = wp_nonfunctional)) +
+  geom_boxplot()
 ```
 
 -   Displaying summary statistics on a choropleth map by using the basic principles of boxplot.
 
 -   To create a box map, a custom breaks specification will be used. However, there is a complication. The break points for the box map vary depending on whether lower or upper outliers are present.
 
-#### 23.5.2.1 Creating the boxbreaks function
+#### 5.2.1 Creating the boxbreaks function
 
 The code chunk below is an R function that creating break points for a box map.
 
@@ -194,8 +199,10 @@ The code chunk below is an R function that creating break points for a box map.
 
     -   bb: vector with 7 break points compute quartile and fences
 
-```{r}
-# boxbreak_fx
+```{r, include = FALSE}
+#| echo: false
+boxbreaks <- source("boxbreak_fx.R", local = knitr::knit_global())$value
+
 ```
 
 #### 5.2.2 Creating the get.var function
@@ -212,8 +219,9 @@ The code chunk below is an R function to extract a variable as a vector out of a
 
     -   v: vector with values (without a column name)
 
-```{r}
-#getvar_fx.R
+```{r, include = FALSE}
+#| echo: false
+get.var <- source("getvar_fx.R", local = knitr::knit_global())$value
 ```
 
 #### 5.2.3 Test drive the newly created function
@@ -221,19 +229,20 @@ The code chunk below is an R function to extract a variable as a vector out of a
 Letâ€™s test the newly created function
 
 ```{r}
-# var <- get.var("wp_nonfunctional", NGA_wp) 
-# boxbreaks(var)
+var <- get.var("wp_nonfunctional", NGA_wp) 
+boxbreaks(var)
 ```
 
 #### 5.2.4 Boxmap function
 
 The code chunk below is an R function to create a box map. - arguments: - vnam: variable name (as character, in quotes) - df: simple features polygon layer - legtitle: legend title - mtitle: map title - mult: multiplier for IQR - returns: - a tmap-element (plots a map)
 
-```{r}
-#boxmap_fx.R
+```{r, include = FALSE}
+#| echo: false
+boxmap <- source("boxmap_fx.R", local = knitr::knit_global())$value
 ```
 
 ```{r}
-# tmap_mode("plot")
-# boxmap("wp_nonfunctional", NGA_wp)
+tmap_mode("plot")
+boxmap("wp_nonfunctional", NGA_wp)
 ```
