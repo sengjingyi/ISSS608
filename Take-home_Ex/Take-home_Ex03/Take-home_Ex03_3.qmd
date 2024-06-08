@@ -340,13 +340,13 @@ rm(tx_c, E_Tping_c2, E_Tping_c, E_Hbrpt_c)
 *Reference: [Kickstarter 3](https://isss608-ay2023-24apr.netlify.app/vast/kickstarter3#overview) by Prof Kam*
 
 ```{r}
-ggplot(data = oceanus_geog) + geom_sf()
+# basic plot of underlying geography (polygons, points)
+# ggplot(data = oceanus_geog) + geom_sf()
 
 # write_rds(oceanus_geog, "data/rds/OceanusGeography.rds")
 
 OceanusLocations <- st_read(dsn = "data/shp",
   layer = "Oceanus Geography")
-
 
 ```
 
