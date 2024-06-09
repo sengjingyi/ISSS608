@@ -27,28 +27,33 @@ FishEye has learned that SouthSeafood Express Corp has been caught fishing illeg
 
 FishEye analysts need help to perform geographic and temporal analysis of the CatchNet data so they can prevent illegal fishing from happening again. This assignment will focus on sub-questions 1 & 4, namely:
 
-+--------+----------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------+
-| Sub-qn | Objectives                                                                                                                                         | Techniques Used                                              |
-+========+====================================================================================================================================================+==============================================================+
-| 1      | Visualization system to associate vessels with their probable cargos, including seasonality analysis to detect any anomalies in port exit records. | Visualising geographical data                                |
-|        |                                                                                                                                                    |                                                              |
-|        |                                                                                                                                                    | Visualisation with Treemap                                   |
-+--------+----------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------+
-| 4      | Visualizing changes in fishing activities after SouthSeafood Express was caught.                                                                   | Analysing time series                                        |
-|        |                                                                                                                                                    |                                                              |
-|        |                                                                                                                                                    | Visual multi-variate analysis with parallel coordinates plot |
-+--------+----------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------+
++-----------+----------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------+
+| Sub-qn    | Objectives                                                                                                                                         | Techniques Used                                              |
++===========+====================================================================================================================================================+==============================================================+
+| 1         | Visualization system to associate vessels with their probable cargos, including seasonality analysis to detect any anomalies in port exit records. | Visualising geographical data                                |
+|           |                                                                                                                                                    |                                                              |
+|           |                                                                                                                                                    | Visualisation with Treemap                                   |
++-----------+----------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------+
+| 4         | Visualizing changes in fishing activities after SouthSeafood Express was caught.                                                                   | Analysing time series                                        |
+|           |                                                                                                                                                    |                                                              |
+|           |                                                                                                                                                    | Visual multi-variate analysis with parallel coordinates plot |
++-----------+----------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------+
 
 ## 2. Data Import & Processing
 
 ### 2.1 Loading relevant packages and data
 
++----------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
 | Packages Used                                            | Purpose                                                                                                            |
-|----------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
++==========================================================+====================================================================================================================+
 | jsonlite, sf                                             | Importing JSON file and geojson for geographical data                                                              |
++----------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
 | tidyverse, lubridate, dplyr, readr, reshape2, data.table | Data wrangling and reshaping in preparation for visualisation and wrap text function                               |
++----------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
 | ggplot2, tidygraph, patchwork, sf, ggrepel               | Statistical graph and geographical plots with points and polygons and tidying of graphs for clarity and aesthetics |
++----------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
 | DT, igraph, ggraph, plotly, visNetwork, ggiraph          | For interactive graph and data table for user to drill down on area of interest                                    |
++----------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
 
 ```{r}
 # load package
@@ -76,11 +81,15 @@ mc2_data <- fromJSON("data/mc2.json")
 6.  Specifically for `tx_c`, adjustment of transaction date, T0 to T-1 as fish import generally leave harbor one day after delivery
 7.  Resultant data sets include:
 
++------------------------------------+--------------------------------------------------------------------------------------------------------+
 | Resultant Edges Data Set           | Unique columns                                                                                         |
-|------------------------------------|--------------------------------------------------------------------------------------------------------|
++====================================+========================================================================================================+
 | Transactions (i.e., tx_c)          | Cargo_id, Destination, Transaction date, Fish species                                                  |
++------------------------------------+--------------------------------------------------------------------------------------------------------+
 | Transponder Ping (i.e., E_Tping_c) | Start_time, Dwell, Ping source, Vessel_id                                                              |
++------------------------------------+--------------------------------------------------------------------------------------------------------+
 | Habor Arrival Report (E_Hbrpt_c)   | Vessel_id, Port, Key, Arrival date, Port master, Aphorism, Holiday Greeting, Saying of the Sea, Wisdom |
++------------------------------------+--------------------------------------------------------------------------------------------------------+
 
 ```{r}
 #assigning to mc2_edges2
@@ -164,12 +173,17 @@ rm(tx_sub1, tx_sub2, E_TransponderPing,  E_HarborRpt, E_Tx, mc2_edges, E_Tx_c)
 
 Repeating similar steps for `nodes` records, we obtained the following resultant data set. To minimize the number of data sets, we appended nodes information on vessels and region into a combined data set, with an assigned label to identify it's category. (e.g., vessel_type)
 
++------------------------------------------+--------------------------------------------------------------------------------------------+
 | Resultant Nodes Data Sets                | Unique Columns                                                                             |
-|------------------------------------------|--------------------------------------------------------------------------------------------|
++==========================================+============================================================================================+
 | N_fish (Fishes and their description)    | Fish_id, fish species                                                                      |
++------------------------------------------+--------------------------------------------------------------------------------------------+
 | N_Delivery_Doc (Cargo and details)       | Cargo_id, quantity in tons, delivery date                                                  |
++------------------------------------------+--------------------------------------------------------------------------------------------+
 | N_vessel (Vessels and their description) | Vessel_id, vessel name, vessel company, flag country, tonnage, overall length, vessel type |
++------------------------------------------+--------------------------------------------------------------------------------------------+
 | Location_legend (Point, City, Region)    | Area, activities, kind, fish_species                                                       |
++------------------------------------------+--------------------------------------------------------------------------------------------+
 
 ```{r}
 
@@ -621,7 +635,9 @@ rm(edges, graph, graph_tbl, fish_dest_map)
 
 [Insights:]{.underline}
 
-1.  
+1.  Cargo with quantity \<0 are scattered across the city and fish species.
+
+2.  For certain ports (e.g., City of Haacklee and City of Himark), there are absence of cargo of certain fish species. For "thunniniveradb7", the first is only offloaded at City of Haacklee and City of South Paackland.
 
 ```{r}
 ggplot(tx_qty, aes(x = fish_species, y = qty_tons)) + 

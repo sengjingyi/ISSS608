@@ -1,5 +1,5 @@
 ---
-title: "Take-home Exercise 3 - MC2 Sub Qn 1"
+title: "Take-home Exercise 3 - MC2 Sub Qn 1 & 4"
 author: "Seng Jing Yi"
 date: "May 18, 2024"
 date-modified: "last-modified"
@@ -38,7 +38,6 @@ FishEye analysts need help to perform geographic and temporal analysis of the Ca
 1.  Identify date where South Seafood Express Corp was caught based on last seen activity by "Transponder Ping"
 2.  Comparing median dwell time of fishing vessels per area before and after South Seafood Express (SSE) was caught.
 3.  Comparing cargo transactions before and after SSE was caught.
-4.  Comparing associated vessels with cargo delivered to identify any drastic changes.
 
 # 2. Data Import and Processing
 
@@ -135,11 +134,9 @@ cargo_v_activity <- ping_activity %>%
 
 3.  Substantially larger distinct count of cargo_id to distinct vessel_id. This suggest that 1 vessel may deposit one or more cargo, especially when each cargo only includes 1 fish species. Hence, possible investigation include:
 
-<!-- -->
+    1.  Same vessel delivering multiple cargo of same fish species on the same day to split total volume of fish caught to prevent being flagged for over-fishing,
 
-(i) same vessel delivering multiple cargo of same fish species on the same day to split total volume of fish caught to prevent being flagged for over-fishing,
-
-(ii) same vessel delivering multiple cargo of different fish species on same day, where each cargo is labelled by distinct fish species.
+    2.  Same vessel delivering multiple cargo of different fish species on same day, where each cargo is labelled by distinct fish species.
 
 ```{r}
 # Comparing entries per port with boxplot
@@ -226,11 +223,15 @@ ggplot(count2, aes(x = dest, y = count, fill = type)) +
 
 The table below summarise the results of 3 matching methods for fishing vessels:
 
-| S/N | Matching Method                                                              | \% Match           | \% Mis-match   |
-|-------------|---------------------------------|-------------|-------------|
-| 1   | Tx_c (Cargo import) with E_Hbrpt_v (Vessel Harbor Arrival) by date           | 2454 / 5307 = 46%  | 307 = 54%      |
-| 2   | Tx_c (Cargo Import) with Ping Activity (Vessel at port) by date              | 5307 / 5307 = 100% | \-             |
-| 3   | Tx_c (Fish Species) with Ping Activity (Past route & probable fishes caught) | 4957 / 5003 = 99%  | 46 / 5003 = 1% |
++----------+------------------------------------------------------------------------------+--------------------+----------------+
+| S/N      | Matching Method                                                              | \% Match           | \% Mis-match   |
++==========+==============================================================================+====================+================+
+| 1        | Tx_c (Cargo import) with E_Hbrpt_v (Vessel Harbor Arrival) by date           | 2454 / 5307 = 46%  | 307 = 54%      |
++----------+------------------------------------------------------------------------------+--------------------+----------------+
+| 2        | Tx_c (Cargo Import) with Ping Activity (Vessel at port) by date              | 5307 / 5307 = 100% | \-             |
++----------+------------------------------------------------------------------------------+--------------------+----------------+
+| 3        | Tx_c (Fish Species) with Ping Activity (Past route & probable fishes caught) | 4957 / 5003 = 99%  | 46 / 5003 = 1% |
++----------+------------------------------------------------------------------------------+--------------------+----------------+
 
 ### 3.2.1 Method 1 - Direct Match of Habor Report of vessel with Cargo Transactions on `Port` and `Date`
 
@@ -564,11 +565,6 @@ area_of_interest = c("City of Himark", "City of Haacklee")
 tx_int <- nearest_tx_date %>% filter(tx_date >= earliest_date, tx_date <= latest_date, 
                                      dest == area_of_interest) %>% arrange(dest, tx_date)
 
-# return underlying dataset 
-datatable(tx_int, 
-          options = list(pageLength = 3), 
-          filter = "top")
-
 cargo_summary <- tx_int %>%
   group_by(dest, tx_date) %>%
   summarize(cargo_count = n_distinct(cargo_id), cargo_ids = paste(cargo_id, collapse = ", "))
@@ -637,6 +633,11 @@ p2 <- ggplot(highlight_key(vessel_summary, ~key), aes(x = week, y = weekday, fil
 p2 <- ggplotly(p2, tooltip = "text") %>%
   layout(legend = list(x = 1.1, y = 0.5))
 
+# return underlying dataset 
+datatable(tx_int, 
+          options = list(pageLength = 3), 
+          filter = "top")
+
 # Combine plots using subplot and arrange legends
 subplot(p1, p2, nrows = 2, margin = 0.05, titleX = TRUE, titleY = TRUE) %>%
   layout(annotations = list(
@@ -645,6 +646,8 @@ subplot(p1, p2, nrows = 2, margin = 0.05, titleX = TRUE, titleY = TRUE) %>%
          )) %>%
   highlight(on = "plotly_hover", dynamic = TRUE, persistent = TRUE)
 ```
+
+\
 
 [Insights from this subset of data for the month of "August 2035" for covering 2 selected ports:]{.underline}
 
@@ -671,7 +674,7 @@ route_vessel_summary <- tx_int %>%
   summarize(vessel_count = n_distinct(vessel_id))
 
 # Display the resulting data frames
-datatable(route_vessel_summary, options = list(pageLength = 3))
+datatable(route_vessel_summary, options = list(pageLength = 3), caption = "Summary of Route Taken by Vessels of Interest")
 
 # plot routes of vessel of interest
 
@@ -695,7 +698,7 @@ vessel_trajectory <- vessel_movement_sf %>%
 
 ```{r}
 # introduce parameter for selected vessel
-unique(route_vessel_summary$vessel_id)
+# unique(route_vessel_summary$vessel_id)
 
 # test parameter
 selected_vessel = c("brownbullheadbriganded2")
@@ -720,7 +723,7 @@ map_plot <- ggplot() +
   geom_text(data = OceanusLocations_df, aes(x = XCOORD, y = YCOORD, label = Name),
             size = 2, hjust = 1, vjust = 1) +
   theme_minimal() +
-  labs(title = "Trajectories of South Seafood Express Corp",
+  labs(title = "Trajectories of Vessel of Interest",
        x = "Longitude", y = "Latitude", color = "Vessel ID")
 
 # Convert to plotly and include hover text
@@ -797,7 +800,7 @@ generate_network_plot("2035-08")
 
 [Steps taken:]{.underline}
 
-1.  Plot common vessel movement for South Seafood Express Vessels, namely "snappersnatcher7be" and "roachrobberdb6".
+1.  Plot common vessel movement for South Seafood Express Vessels, namely "snappersnatcher7be" and "roachrobberdb6" - Reference code chunk in EDA
 2.  Plot calendar map to identify vessel pattern over time and zoom into period where South Seafood Express Vessels were still active.
 3.  Return data table of the last records of `Transponder Ping` for South Seafood Express Vessels.
 
@@ -807,29 +810,69 @@ generate_network_plot("2035-08")
 
 -   6 May 2035 for roachrobberdb6 for City of Himark, Cod Table, Wrasse Bed
 
+-   Most vessels identified at Cod Table based on Transponder Ping, whereas for South Seafood Express Corp vessels, most activity at Nav C and Wrasse Beds
+
+![](images/clipboard-4117166214.png)
+
 ```{r}
-vessels_of_interest <- c("snappersnatcher7be", "roachrobberdb6")
-vessel_colors <- c("snappersnatcher7be" = "red", "roachrobberdb6" = "purple")
-
-# creating route for selected vessel 
-vessel_trajectory_selected <- vessel_trajectory %>%
-  filter(vessel_id %in% vessels_of_interest)
-
-# defining colors for X.kind
-
-ggplot() +
-  geom_sf(data = oceanus_geog, aes(fill = X.Kind), color = "black") +
-  scale_fill_manual(values = kind_colors) + 
-  geom_sf(data = vessel_trajectory_selected, 
-          aes(color = vessel_id), 
-          size = 1) +
-  scale_color_manual(values = vessel_colors) + 
-  geom_text(data = OceanusLocations_df, 
-            aes(x = XCOORD, y = YCOORD, label = Name), 
-            size = 2, hjust = 1, vjust = 1) +
-  theme_minimal() +
-  labs(title = "Trajectories of South Seafood Express Corp", 
-       x = "Longitude", y = "Latitude", color = "Vessel ID")
+# coords <- st_coordinates(OceanusLocations)
+# 
+# # drop geometry columns
+# OceanusLocations_df <- OceanusLocations %>%
+#   st_drop_geometry()
+# 
+# # append x and y coordinates into df as columns
+# OceanusLocations_df$XCOORD <- coords[, "X"]
+# OceanusLocations_df$YCOORD <- coords[, "Y"]
+# 
+# # tidy df by renaming column 
+# OceanusLocations_df <- OceanusLocations_df %>%
+#   select(Name, X.Kind, XCOORD, YCOORD) %>%
+#   rename(Loc_Type = X.Kind)
+# 
+# # left join to append back to vessel movement 
+# 
+# vessel_movement <- vessel_movement %>%
+#   left_join(OceanusLocations_df,
+#             by = c("area" = "Name"))
+# 
+# # convert vessel movement sf from point into linestring features known as vessel trajectory
+# vessel_trajectory <- vessel_movement_sf %>%
+#   group_by(vessel_id) %>%
+#   summarize(do_union = FALSE) %>%
+#   st_cast("LINESTRING")
+# 
+# ## include placeholder for vessel of interest and colors assigned
+# 
+# vessels_of_interest <- c("snappersnatcher7be", "roachrobberdb6")
+# vessel_colors <- c("snappersnatcher7be" = "red", "roachrobberdb6" = "purple")
+# 
+# # creating route for selected vessel 
+# vessel_trajectory_selected <- vessel_trajectory %>%
+#   filter(vessel_id %in% vessels_of_interest)
+# 
+# # defining colors for X.kind
+# 
+# kind_colors <- c(
+#   "Island" = "beige", 
+#   "Fishing Ground" = "lightblue", 
+#   "Ecological Preserve" = "lightgreen", 
+#   "city" = "purple", 
+#   "buoy" = "blue")
+# 
+# ggplot() +
+#   geom_sf(data = oceanus_geog, aes(fill = X.Kind), color = "black") +
+#   scale_fill_manual(values = kind_colors) + 
+#   geom_sf(data = vessel_trajectory_selected, 
+#           aes(color = vessel_id), 
+#           size = 1) +
+#   scale_color_manual(values = vessel_colors) + 
+#   geom_text(data = OceanusLocations_df, 
+#             aes(x = XCOORD, y = YCOORD, label = Name), 
+#             size = 2, hjust = 1, vjust = 1) +
+#   theme_minimal() +
+#   labs(title = "Trajectories of South Seafood Express Corp", 
+#        x = "Longitude", y = "Latitude", color = "Vessel ID")
 
 # plotting summary of vessel movement 
 vessel_movement <- vessel_movement %>%  
@@ -929,7 +972,11 @@ datatable(ping_activity_ss,
 2.  Plot the median `dwell` time spent by South Seafood Express Vessels in comparison to other vessels
 3.  Contrast with the median time spent by vessels if there's any change after `date_caught`.
 
-Insights:
+[Insights:]{.underline}
+
+1.  For "snappersnatcher7be" (highlighted in orange), most prominent activity in City of Himark, Wrasse Beds.
+2.  For "roachrobberdb6" (highlighted in red), most prominent activity in City of Lomark, and 2 instance with exceptionally long dwell time in Wrasse Beds, and majority of the time spent in Cod Table, which indicates possibility of over-fishing in these areas.
+3.  Also, there is a red flag for "roachrobberdb6" where it has significantly high dwell time in "Ghoti Reserve", which is not meant for fishing.
 
 ```{r}
 # segment transponder ping record to before date caught and after. 
@@ -991,6 +1038,10 @@ fishing_dwell_bef | fishing_dwell_aft
 
 [Insights:]{.underline}
 
+1.  Drastic decrease in median dwell time for "Ghoti Reserve" after South Seafood Express Corp has been caught.
+2.  Likely that vessels either stop their illegal fishing or they routed over to "Don Limpet Reserve" where we see a slight increase in the median dwell time.
+3.  Substantial increase in median dwell time at City of Paackland, pointing to possible vessels seeking shelter, till the aftermath and scrutiny on South Seafood Express Corp illegal activities investigation has ceased.
+
 ```{r}
 # comparing median time spent at each area before and after
 
@@ -1007,12 +1058,21 @@ fish_v_bef_aft <- fish_v_bef_aft %>%
   rename(median_dwell_bef = median_dwell.x, median_dwell_aft = median_dwell.y) %>%
   mutate(diff_bef_aft = median_dwell_bef - median_dwell_aft) %>% arrange(diff_bef_aft)
 
-ggplot(fish_v_bef_aft, 
-       aes(x= area, y = diff_bef_aft)) + 
-  geom_bar(stat = "identity") + coord_flip()
+# reorder 
+fish_v_bef_aft$area <- factor(fish_v_bef_aft$area, levels = c("Nav E", "Nav D", "Nav C" , "Nav B", "Nav A" , "Nav 3", "Nav 2", "Nav 1", "Ghoti Preserve", "Don Limpet Preserve", "Nemo Reef", "Cod Table","Tuna Shelf","Wrasse Beds","Exit East", "City of South Paackland", "City of Paackland","City of Lomark","City of Himark","City of Haacklee","City of Port Grove"))
 
-# reorder variable such that group ecological preserves together and ports tgt (see direct contrast)
-# highlight color - shift from fishing at Ghoti reserve to fishing at Lim Donpet Reserves
+ggplot(fish_v_bef_aft, 
+       aes(x= area, y = diff_bef_aft, fill = diff_bef_aft >0)) + 
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 15.5 , xmax = 20.5, alpha = 0.8, fill = "beige") +    # Ports
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 11.5, xmax = 14.5, alpha = 0.5, fill = "lightblue") +  # Fishing ground
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 8.5, xmax = 11.5, fill = "lightgreen", alpha = 0.5) +  # Ecological preserve
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 0.5, xmax = 8.5, alpha = 0.5, fill = "lightgrey") +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("TRUE" = "darkgreen", "FALSE" = "red"), guide = FALSE) + 
+  labs(title = "Change in median dwell time after 15 May 2035", 
+       x = "Geographical Area", 
+       y = "Difference in median dwell time") + 
+  coord_flip()
 
 
 ```
@@ -1020,6 +1080,10 @@ ggplot(fish_v_bef_aft,
 ### 4.2.2 How count of vessels in each area has changed
 
 [Insights:]{.underline}
+
+1.  General decrease in vessel count at the various ports. This might point to some vessels which are idle after South Seafood Express Corp was caught.
+2.  Possibly change in the location where vessels were identified from "Wrasse Beds" and "Cod Table" to "Tuna Shelf". This might be due to seasonality of fish catch that requires further analysis on the expected cargo for Oceanus over the years.
+3.  Decrease in vessel count in "Nav C" nearer to Ghoti Reserve, and increase in "Nav D" nearer to Nemo Reefs, which potentially point to vessels shifting away from sensitive area of "Ghoti Reserve" under tight scrutiny to continue their illegal fishing activities in "Nemo Reefs"
 
 ```{r}
 fish_v_activity_bef_count <- fish_v_activity_bef %>%
@@ -1046,13 +1110,33 @@ fish_v_count_bef_aft <- fish_v_count_bef_aft %>%
   mutate(diff_count_bef_aft = fish_dist_total_bef_weeks - fish_dist_total_aft_weeks) %>% 
   arrange(diff_count_bef_aft)
 
-ggplot(fish_v_count_bef_aft, aes(x= area, y = diff_count_bef_aft)) + geom_bar(stat = "identity")
+# reorder 
+fish_v_count_bef_aft$area <- factor(fish_v_bef_aft$area, levels = c("Nav E", "Nav D", "Nav C" , "Nav B", "Nav A" , "Nav 3", "Nav 2", "Nav 1", "Ghoti Preserve", "Don Limpet Preserve", "Nemo Reef", "Cod Table","Tuna Shelf","Wrasse Beds","Exit East", "City of South Paackland", "City of Paackland","City of Lomark","City of Himark","City of Haacklee","City of Port Grove"))
+
+# plot
+
+ggplot(fish_v_count_bef_aft, 
+       aes(x= area, y = diff_count_bef_aft, fill = diff_count_bef_aft >0)) +
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 15.5 , xmax = 20.5, alpha = 0.8, fill = "beige") +    # Ports
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 11.5, xmax = 14.5, alpha = 0.5, fill = "lightblue") +  # Fishing ground
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 8.5, xmax = 11.5, fill = "lightgreen", alpha = 0.5) +  # Ecological preserve
+  annotate("rect", ymin = -Inf, ymax = Inf, xmin = 0.5, xmax = 8.5, alpha = 0.5, fill = "lightgrey") +
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values = c("TRUE" = "darkgreen", "FALSE" = "red"), guide = FALSE) + 
+  labs(title = "Change in fishing vessel count after 15 May 2035", 
+       x = "Geographical Area", 
+       y = "Difference in vessel count per area") + 
+  coord_flip()
 
 ```
 
-### 4.2.3 How cargo count have changed
+### 4.2.3 How cargo count have changed over time.
 
 [Insights:]{.underline}
+
+1.  General increase in cargo count across the month of May till November and this is likely due to the seasonality of the fish stock in the ocean.
+2.  However, notable changes include City of Himark where there is a drop in cargo count of illegal fish species from July, May till September. On the contrary, the illegal cargo count for City of Paackland and City of Lomark has increased from Auguest till November where it peaked.
+3.  City of Haacklee and Paackland has a substantial proportion of cargo belonging to "Salmon" fish species, and this may be due to the relative proximity to the south fringes of Oceanus islands.
 
 ```{r}
 # including date that south seafood was caught
@@ -1107,7 +1191,14 @@ ggplot(cargo_summary, aes(x = month, y = cargo_count, fill = species_type)) +
 
 ```
 
-4.2.4 How cargo quantity has changed
+### 4.2.4 How cargo quantity has changed
+
+[Insights:]{.underline}
+
+1.  In general the quantity of fish species caught have increased. This is aligned with the seasonal trend where there is more catches in the later part of the year with warmer waters and post fish breeding.
+2.  However, exceptional points include unusually huge increase in illegal fish species of "piscesfoetidaae7" reported at "City of Himark" which may point to illegal fishing at "Don Limpet Preserve".
+3.  There is also exception increase in "Salmon" quantity reported at City of Haacklee, pointing to possible fishing in unregulated waters.
+4.  Comparing the rate of increase in fish quantity caught, while illegal fish quantity increase is on average lower than legal fish quantity increase, there is still notable increase in cargo unloaded at "City of Paackland, City of Himark and City of Haacklee".
 
 ```{r}
 
@@ -1132,18 +1223,195 @@ tx_qty_bef_aft <- tx_qty_bef_aft %>%
   mutate(qty_tons_aft_sum_week = (qty_tons_aft_sum / as.numeric(days_aft))*7,
         cargo_aft_count_week = (cargo_aft_count / as.numeric(days_aft))*7, 
 qty_tons_bef_sum_week = (qty_tons_bef_sum / as.numeric(days_bef))*7,
-cargo_bef_count_week = (cargo_bef_count / as.numeric(days_bef))*7) #, 
+cargo_bef_count_week = (cargo_bef_count / as.numeric(days_bef))*7)
 
-# include assign 0 to NA values + calculate differentials 
-# qty_tons_bef_aft_week = qty_tons_bef_sum_week - qty_tons_aft_sum_week, 
-# cargo_count_bef_aft_week = cargo_bef_count_week - cargo_aft_count_week)
+tx_qty_bef_aft <- tx_qty_bef_aft %>%
+  mutate(across(everything(), ~ replace_na(.x, 0)), 
+         qty_tons_bef_aft_week = qty_tons_aft_sum_week - qty_tons_bef_sum_week, 
+         cargo_count_bef_aft_week = cargo_aft_count_week - cargo_bef_count_week)
 
+# draw hline for legal and illegal fishes
+tx_qty_bef_aft_legal <- tx_qty_bef_aft %>% 
+  filter(fish_species %in% 
+           c("gadusnspecificatae4ba", "piscissapidum9b7", "habeaspisces4eb", "piscesfrigus900", "labridaenrefert9be", "thunnininveradb7") )
+
+median_count_legal <- median(tx_qty_bef_aft_legal$cargo_count_bef_aft_week, na.rm = TRUE)
+median_qty_legal <- median(tx_qty_bef_aft_legal$qty_tons_bef_aft_week, na.rm = TRUE)
+
+tx_qty_bef_aft_illegal <- tx_qty_bef_aft %>% 
+  filter(fish_species %in% c("piscesfoetidaae7", "piscisosseusb6d", "piscessatisb87") )
+median_count_illegal <- median(tx_qty_bef_aft_illegal$cargo_count_bef_aft_week, na.rm = TRUE)
+median_qty_illegal <- median(tx_qty_bef_aft_illegal$qty_tons_bef_aft_week, na.rm = TRUE)
+
+# assign color by fish species
+fish_species_color <- c("piscesfoetidaae7" = "#FF6666", 
+                        "piscisosseusb6d" = "#FF9999", 
+                        "piscessatisb87" = "#FFCCCC", 
+                        "gadusnspecificatae4ba" = "#CCE5FF", 
+                        "piscissapidum9b7" = "#99CCFF", 
+                        "habeaspisces4eb" = "#66B2ff", 
+                        "piscesfrigus900" = "#CCE5FF", 
+                        "oncorhynchusrosea790" = "#FFFF99", 
+                        "labridaenrefert9be" = "#99CCFF", 
+                        "thunnininveradb7" = "#66b2ff"
+                        )
+
+# plot
 tx_count_bef_aft <- ggplot(tx_qty_bef_aft, 
-                           aes(x= dest, y = diff_count_bef_aft)) + 
-  geom_bar(stat = "identity") + 
-  coord_flip()
+                           aes(x = dest, y = cargo_count_bef_aft_week)) +
+  theme_minimal() + 
+  theme(axis.line = element_line(color = "black")) +
+  geom_boxplot() + 
+  geom_point(aes(color = fish_species), size = 4) + 
+  geom_hline(aes(yintercept = median_count_legal), 
+             color = "blue", linetype = "dashed") + 
+  geom_hline(aes(yintercept = median_count_illegal), color = "red", linetype = "dashed")+ 
+  scale_color_manual(values = fish_species_color) + 
+  coord_flip() + 
+  labs(title = "Comparison of Cargo Count after 15 May 2035", 
+        x = "Destination", y = "Cargo Count") 
+
+
+plot_tx_qty_bef_aft <- ggplot(tx_qty_bef_aft, 
+                              aes(x= dest, y = qty_tons_bef_aft_week)) +
+  theme_minimal() + 
+  theme(axis.line = element_line(color = "black")) +
+  geom_boxplot() + 
+  geom_point(aes(color = fish_species), size = 4) + 
+  geom_hline(aes(yintercept = median_qty_legal), 
+             color = "blue", linetype = "dashed") + 
+  geom_hline(aes(yintercept = median_qty_illegal), color = "red", linetype = "dashed")+ 
+  scale_color_manual(values = fish_species_color) +  
+  coord_flip() + 
+  labs(title = "Comparison of Cargo Quantity after 15 May 2035", 
+       x = "Destination", y = "Cargo Quantity in tons")
 
 tx_count_bef_aft
+plot_tx_qty_bef_aft
+                            
 ```
 
-4.2.5. How travel routes have changed
+### 4.2.5. How travel routes have changed
+
+[Insights]{.underline}:
+
+1.  Shift of most popular route before and after 15 May 2023, this is likely due to the availability of fishes within the fishing region during the fishing season, unlike previously where the ships have to go outskirts to fish.
+2.  Exponential increase in vessels activity after 15 May 2023, and this can be seen by the summary table below.
+
++---------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Most Popular Route before 15 May 2023                                                                                           | Most Popular Route After 15 May 2023                                                                                                                                                                                                                                                                   |
++=================================================================================================================================+========================================================================================================================================================================================================================================================================================================+
+| Location: City of Himark, Nav 3, Exit East, Cod Table, Exit North, Exit South, West, Nav 2, City of Paackland, Tuna Shelf, etc. | Location: City of Paackland, Nav 2, Cod Table, Exit East                                                                                                                                                                                                                                               |
+|                                                                                                                                 |                                                                                                                                                                                                                                                                                                        |
+| Vessel Count: 85                                                                                                                | Vessel Count: 375                                                                                                                                                                                                                                                                                      |
+|                                                                                                                                 |                                                                                                                                                                                                                                                                                                        |
+| Unique vessels: 1 (seawaysynergybaf)                                                                                            | Unique vessels: 15 (haddockhunter1a7 eelenthusiast8c6 sardineseeker62e marinersmate8ee baitedbreath538 seabreamseekerd8b speckledtroutsaboteur509 americaneelenthusiastcfa tarpontaker6cd wahoowarriord42 longfintunalooterf32 marlinmaster8ab wahoowrangler016 dolphindasher004 goldentroutgrabber7f6 |
++---------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+[Further insights to be derived by:]{.underline}
+
+1.  Segmenting the route behaviour into more granular subset for comparison. E.g., The 3 subsets identified in EDA for unusually large fishing vessels, foreign unusually small cargo vessels, and foreign exceptionally large cargo vessels.
+2.  Comparison to the cargo deposited by each dominant route to identify any under-reporting of catch by certain vessels and companies.
+
+```{r}
+route_vessel_summary_full <- nearest_tx_date %>%
+  group_by(route_list) %>%
+  summarize(vessel_count = n_distinct(vessel_id))
+
+# Extract unique locations within a path
+
+route_vessel_summary_path_only <- nearest_tx_date %>% 
+  mutate(unique_areas = str_split(route_list, ", ") %>% 
+                       map(~ unique(.x) %>% paste(collapse = ", ")))
+
+# count the number of vessel occurence and unique vessel count 
+
+route_summary_count <- route_vessel_summary_path_only %>% 
+  group_by(unique_areas) %>%
+  summarize(vessel_count = n(), 
+            unique_vessel_count = n_distinct(vessel_id)) %>%
+  arrange(- vessel_count)
+
+# before and after # 127 distinct routes
+route_vessel_bef <- route_vessel_summary_path_only %>% 
+  filter(tx_date <= date_caught) %>% 
+  group_by(unique_areas) %>%
+  summarise(
+    vessel_count = n(), 
+    unique_vessel_count = n_distinct(vessel_id),
+    unique_vessels = toString(unique(vessel_id))
+  ) 
+
+route_vessel_bef <- route_vessel_bef %>% arrange(desc(vessel_count))
+
+datatable(route_vessel_bef, options = list(pageLength = 3))
+
+# after - # 307 routes 
+route_vessel_aft <- route_vessel_summary_path_only %>% 
+  filter(tx_date > date_caught) %>% 
+  group_by(unique_areas) %>%
+  summarise(
+    vessel_count = n(), 
+    unique_vessel_count = n_distinct(vessel_id),
+    unique_vessels = toString(unique(vessel_id))
+  )
+
+route_vessel_aft <- route_vessel_aft %>% arrange(desc(vessel_count))
+
+datatable(route_vessel_aft, options = list(pageLength = 3))
+
+# plot most popular route before South Seafood is caught
+
+max_vessel_count_row <- route_vessel_bef %>% 
+  filter(vessel_count == max(vessel_count))
+
+# Extract the unique vessels from that row
+vessels_of_interest_bef <- strsplit(max_vessel_count_row$unique_vessels, ", ")[[1]]
+
+# creating route for selected vessel 
+vessel_trajectory_selected <- vessel_trajectory %>%
+  filter(vessel_id %in% vessels_of_interest_bef)
+
+# defining colors for X.kind
+
+ggplot() +
+  geom_sf(data = oceanus_geog, aes(fill = X.Kind), color = "black") +
+  scale_fill_manual(values = kind_colors) + 
+  geom_sf(data = vessel_trajectory_selected, 
+          color = "red", 
+          size = 3) + 
+  geom_text(data = OceanusLocations_df, 
+            aes(x = XCOORD, y = YCOORD, label = Name), 
+            size = 2, hjust = 1, vjust = 1) +
+  theme_minimal() +
+  labs(title = "Route most travel before 15 May 2035", 
+       x = "Longitude", y = "Latitude", color = "Vessel ID")
+
+# plot most popular route after South Seafood is caught
+  
+max_vessel_count_row <- route_vessel_aft %>% 
+  filter(vessel_count == max(vessel_count))
+
+# Extract the unique vessels from that row
+vessels_of_interest_aft <- strsplit(max_vessel_count_row$unique_vessels, ", ")[[1]]
+
+# creating route for selected vessel 
+vessel_trajectory_selected <- vessel_trajectory %>%
+  filter(vessel_id %in% vessels_of_interest_aft)
+
+# defining colors for X.kind
+
+ggplot() +
+  geom_sf(data = oceanus_geog, aes(fill = X.Kind), color = "black") +
+  scale_fill_manual(values = kind_colors) + 
+  geom_sf(data = vessel_trajectory_selected, 
+          color = "blue",  # Set the color directly
+          size = 3) + 
+  geom_text(data = OceanusLocations_df, 
+            aes(x = XCOORD, y = YCOORD, label = Name), 
+            size = 2, hjust = 1, vjust = 1) +
+  theme_minimal() +
+  labs(title = "Route most travel after 15 May 2035", 
+       x = "Longitude", y = "Latitude", color = "Vessel ID")
+
+```
