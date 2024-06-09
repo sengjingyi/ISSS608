@@ -64,7 +64,7 @@ website:
           - text: "Take-home Exercise 3 - EDA"
             href: "Take-home_Ex/Take-home_Ex03/Take-home_Ex03_EDA.html"
           - text: "Take-home Exercise 3 - Qn"
-            href: "Take-home_Ex/Take-home_Ex03/Take-home_Ex03_Q.html"
+            href: "Take-home_Ex/Take-home_Ex03/Take-home_Ex03_Q14.html"
       - href: index.qmd
         text: Home
       - about.qmd
