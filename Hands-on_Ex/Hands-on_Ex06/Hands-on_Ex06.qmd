@@ -86,9 +86,7 @@ The code chunk below will be used to perform the changes.
 ```{r}
 GAStech_edges <- GAStech_edges %>%
   mutate(SendDate = dmy(SentDate)) %>%
-  mutate(Weekday = wday(SentDate,
-                        label = TRUE,
-                        abbr = FALSE))
+  mutate(Weekday = wday(SentDate))
 ```
 
 ::: callout-tip
@@ -387,6 +385,7 @@ g <- ggraph(GAStech_graph,
                   size = 2)
 
 g + facet_edges(~Weekday)
+
 ```
 
 ### **6.2 Working with *facet_edges()***
