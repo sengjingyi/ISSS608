@@ -1,0 +1,127 @@
+---
+title: "In Class Exercise 9"
+author: "Seng Jing Yi"
+date: "15 June, 2024"
+date-modified: "last-modified"
+execute: 
+  eval: true
+  echo: true
+  warning: false
+  freeze: true
+format: html
+editor: visual
+---
+
+```{r}
+pacman::p_load(scatterPlotMatrix, parallelPlot, cluster, factoextra, tidyverse)
+```
+
+## Import Data
+
+```{r}
+wine <- read_csv("data/wine_quality.csv")
+```
+
+Quick overview of the type of wine in data set.
+
+```{r}
+ggplot(data = wine, aes(x= type)) + geom_bar() + labs(
+  title = "Breakdown of Wine by Type", 
+  x = "Type of Wine", 
+  y = "Frequency of Wine"
+)
+```
+
+Only interested in white wine, hence filter to white wine.
+
+1.  Drop column 12: Quality of Wine to make the data more clean for clustering
+2.  Drop column 13 on type as already filtered down to white wine, all will be "white:
+
+```{r}
+whitewine <- wine %>% 
+  filter(type == "white") %>%
+  select(c(1:11))
+```
+
+## Scatter Plot Matrix (Interactive)
+
+Plotting the [scatter plot matrix](https://cran.r-project.org/web/packages/scatterPlotMatrix/vignettes/introduction-to-scatterplotmatrix.html).
+
+-   As the plot is a widget itself, the width and height of the display is defined within the variable (500 pixel width and 500 pixel height).
+
+-   distribType = 1: Density Plot, 2 = Histogram
+
+-   corrPlotCS = Setting color for the scheme. (e.g "YlOrRd")
+
+```{r}
+# returning density plot
+scatterPlotMatrix(whitewine, corrPlotType = "Text", 
+                  distribType = 1, 
+                  width = 500, 
+                  height = 500)
+```
+
+```{r}
+# returning histogram
+scatterPlotMatrix(whitewine, corrPlotType = "Text", 
+                  distribType = 2, 
+                  width = 500, 
+                  height = 500)
+```
+
+Exposing control for the widget with `controlWidgets = TRUE`
+
+```{r}
+scatterPlotMatrix(whitewine, corrPlotType = "Text", 
+                  distribType = 2, 
+                  width = 500, 
+                  height = 500, 
+                  controlWidgets = TRUE)
+```
+
+## Clustering
+
+Determining optimal number of clusters
+
+```{r}
+#set.seed(1234)
+#gap_stat <- clusGap
+
+#fviz_gap_stat(gap_stat)
+```
+
+Deriving the 4 clusters
+
+-   set.seed defined to ensure that it starts from the same position to return similar clusters per iteration
+
+```{r}
+set.seed(123)
+kmeans4 <- kmeans(whitewine, 4, nstart = 25)
+print(kmeans4)
+```
+
+Visualisation technique to show the cluster group.
+
+```{r}
+fviz_cluster(kmeans4, data = whitewine)
+```
+
+Take results from kmeans and pull out the cluster field and append back to the white wine data set.
+
+```{r}
+whitewine <- whitewine %>% mutate(Cluster = kmeans4$cluster)
+```
+
+Factorize the cluster column (1,2,3,4,5), as the values returned from cluster is as integer (continuous), should convert into discrete categories.
+
+```{r}
+whitewine$Cluster <- as_factor(whitewine$Cluster)
+```
+
+Plotting the parallel plot
+
+1.  Rotate labels for axis to minimise overlap.
+
+```{r}
+#whitewine %>% 
+```
