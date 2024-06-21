@@ -2,7 +2,7 @@
 title: "Take-home Exercise 3 - MC2 Sub Qn 1 & 4"
 author: "Seng Jing Yi"
 date: "May 18, 2024"
-date-modified: "last-modified"
+date-modified: "June, 9 2024"
 execute: 
   eval: true
   echo: true
@@ -223,15 +223,11 @@ ggplot(count2, aes(x = dest, y = count, fill = type)) +
 
 The table below summarise the results of 3 matching methods for fishing vessels:
 
-+---------+------------------------------------------------------------------------------+--------------------+----------------+
-| S/N     | Matching Method                                                              | \% Match           | \% Mis-match   |
-+=========+==============================================================================+====================+================+
-| 1       | Tx_c (Cargo import) with E_Hbrpt_v (Vessel Harbor Arrival) by date           | 2454 / 5307 = 46%  | 307 = 54%      |
-+---------+------------------------------------------------------------------------------+--------------------+----------------+
-| 2       | Tx_c (Cargo Import) with Ping Activity (Vessel at port) by date              | 5307 / 5307 = 100% | \-             |
-+---------+------------------------------------------------------------------------------+--------------------+----------------+
-| 3       | Tx_c (Fish Species) with Ping Activity (Past route & probable fishes caught) | 4957 / 5003 = 99%  | 46 / 5003 = 1% |
-+---------+------------------------------------------------------------------------------+--------------------+----------------+
+| S/N | Matching Method                                                              | \% Match           | \% Mis-match   |
+|-----|------------------------------------------------------------------------------|--------------------|----------------|
+| 1   | Tx_c (Cargo import) with E_Hbrpt_v (Vessel Harbor Arrival) by date           | 2454 / 5307 = 46%  | 307 = 54%      |
+| 2   | Tx_c (Cargo Import) with Ping Activity (Vessel at port) by date              | 5307 / 5307 = 100% | \-             |
+| 3   | Tx_c (Fish Species) with Ping Activity (Past route & probable fishes caught) | 4957 / 5003 = 99%  | 46 / 5003 = 1% |
 
 ### 3.2.1 Method 1 - Direct Match of Habor Report of vessel with Cargo Transactions on `Port` and `Date`
 
@@ -537,6 +533,9 @@ datatable(mismatched_cargo_nearest_tx,
 
 # clean the environment
 rm(m3_filtered_1days, m3_wo_date, m3_filtered_2days)
+
+# export out mapped records for further analysis
+#write_csv(nearest_tx_date, "data/mapped_records.csv")
 ```
 
 ## 3.3 Putting it together
